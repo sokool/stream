@@ -24,10 +24,20 @@ type Thread struct {
 		after    time.Duration
 		max, num int
 	}
+
+	version int64
 }
 
 func NewThread(id string) *Thread {
 	return &Thread{id: id, members: make(Participants)}
+}
+
+func (t *Thread) ID() string {
+	return t.id
+}
+
+func (t *Thread) Version() int64 {
+	return t.version
 }
 
 func (t *Thread) Start(channel string, p Person) error {
@@ -204,6 +214,7 @@ func (t *Thread) Commit(e Event, at time.Time) error {
 		t.recalls.num++
 	}
 
+	t.version++
 	return nil
 }
 

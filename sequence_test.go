@@ -14,13 +14,12 @@ func TestNewNamespace(t *testing.T) {
 	)
 
 	scenario := []case_{
-		{description: "type.id is correct", have: "typ.124", want: "124.Typ"},
-		{description: "id|type is correct", have: "124|typ", want: "124.Typ"},
+		{description: "id.type is correct", have: "s73ava.Payment", want: "s73ava.Payment"},
 	}
 
 	for _, c := range scenario {
 		t.Run(c.description, func(t *testing.T) {
-			n, err := ParseNamespace(c.have)
+			n, err := NewStringNamespace(c.have)
 			if err != nil {
 				t.Fatal(err)
 			}

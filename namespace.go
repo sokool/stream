@@ -8,7 +8,7 @@ import (
 
 type Namespace struct {
 	id   ID
-	name Name
+	name Type
 }
 
 func NewNamespace(id, name string) (Namespace, error) {
@@ -19,23 +19,45 @@ func NewNamespace(id, name string) (Namespace, error) {
 		return n, Err("invalid namespace id %w", err)
 	}
 
-	if n.name, err = NewName(name); err != nil {
+	if n.name, err = NewType(name); err != nil {
 		return n, Err("invalid namespace name %w", err)
 	}
 
 	return n, nil
 }
 
-func ParseNamespace(s string) (Namespace, error) {
-	if p := strings.Split(s, "."); len(p) == 2 {
-		return NewNamespace(p[0], p[1])
+func NewRootNamespace[R Root[E], E any](r R) (n Namespace, err error) {
+	if n.id, err = NewID(r.ID()); err != nil {
+		return n, Err("invalid namespace id %w", err)
 	}
 
-	return Namespace{}, Err("wrong id %s string format, please use <value>.<type> ie `N8hY13fsd.Chat`")
+	if n.name, err = NewType(r); err != nil {
+		return n, Err("invalid namespace name %w", err)
+	}
+
+	return n, nil
+}
+
+func NewStringNamespace(s string) (n Namespace, err error) {
+	var p []string
+	if p = strings.Split(s, "."); len(p) != 2 {
+		return n, Err("wrong `%s` format, please use <id>.<type> ie `N8hY13fsd.Chat`", s)
+
+	}
+
+	if n.id, err = NewID(p[0]); err != nil {
+		return n, Err("invalid namespace id %w", err)
+	}
+
+	if n.name, err = NewType(p[1]); err != nil {
+		return n, Err("invalid namespace name %w", err)
+	}
+
+	return
 }
 
 func MustNamespace(s string) Namespace {
-	n, err := ParseNamespace(s)
+	n, err := NewStringNamespace(s)
 	if err != nil {
 		panic(err)
 	}

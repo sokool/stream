@@ -7,10 +7,10 @@ import (
 	"time"
 )
 
-type Events interface {
-	Stream(Namespace) ReadWriterAt
-	Read(Query) Reader
-	Write(m []Message) (n int, err error)
+type Events[E any] interface {
+	Stream(Namespace) ReadWriterAt[E]
+	Read(Query) Reader[E]
+	Write(m []Message[E]) (n int, err error)
 }
 
 type Query struct {
@@ -20,27 +20,25 @@ type Query struct {
 	Shutdown   context.Context
 }
 
-type EventStore struct {
+type EventStore[E any] struct {
 	mu         sync.Mutex
-	namespaces NamespacedMessages
-	all        []Message
+	namespaces map[Namespace][]Message[E]
+	all        []Message[E]
 }
 
-type NamespacedMessages map[Namespace][]Message
-
-func NewEvents() *EventStore {
-	return &EventStore{namespaces: make(NamespacedMessages)}
+func NewEvents[E any]() *EventStore[E] {
+	return &EventStore[E]{namespaces: make(map[Namespace][]Message[E])}
 }
 
-func (s *EventStore) Write(m []Message) (n int, err error) {
+func (s *EventStore[E]) Write(m []Message[E]) (n int, err error) {
 	for i := range m {
 		s.all = append(s.all, m[i])
-		s.namespaces[m[i].sequence.namespace] = append(s.namespaces[m[i].sequence.namespace], m[i])
+		s.namespaces[m[i].namespace] = append(s.namespaces[m[i].namespace], m[i])
 	}
 	return len(m), nil
 }
 
-func (s *EventStore) Read(q Query) Reader {
+func (s *EventStore[E]) Read(q Query) Reader[E] {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -60,29 +58,20 @@ func (s *EventStore) Read(q Query) Reader {
 
 }
 
-func (s *EventStore) Stream(n Namespace) ReadWriterAt {
-	return &rwAt{stream: n, store: s}
+func (s *EventStore[E]) Stream(n Namespace) ReadWriterAt[E] {
+	return &rwp[E]{stream: n, store: s}
 }
 
-//func (s *EventStore) ReadFrom(r Reader) (int64, error) {
-//	m, err := Read(r)
-//	if err != nil && err != EOS {
-//		return 0, err
-//	}
-//	s.all = append(s.all, m...)
-//	return int64(len(m)), nil
-//}
-
-func (s *EventStore) Types() []Namespace {
+func (s *EventStore[E]) Types() []Namespace {
 	var st []Namespace
 	for i := range s.namespaces {
-		st = append(st, s.namespaces[i][len(s.namespaces[i])-1].sequence.namespace)
+		st = append(st, s.namespaces[i][len(s.namespaces[i])-1].namespace)
 	}
 
 	return st
 }
 
-func (s *EventStore) WriteTo(w Writer) (int64, error) {
+func (s *EventStore[E]) WriteTo(w Writer[E]) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -90,39 +79,45 @@ func (s *EventStore) WriteTo(w Writer) (int64, error) {
 	return int64(nn), err
 }
 
-func (s *EventStore) Clear() {
+func (s *EventStore[E]) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.all, s.namespaces = []Message{}, make(map[Namespace][]Message)
+	s.all, s.namespaces = []Message[E]{}, make(map[Namespace][]Message[E])
 }
 
-func (s *EventStore) Size() (streams int, events int) {
+func (s *EventStore[E]) Size() (streams int, events int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return len(s.namespaces), len(s.all)
 }
 
-func (s *EventStore) String() (t string) {
+func (s *EventStore[E]) String() (t string) {
 	for i := range s.all {
 		t += fmt.Sprintf("%s", s.all[i])
 	}
 	return
 }
 
-func (s *EventStore) readAt(p []Message, n Namespace, at int64) (int, error) {
+type rwp[E any] struct {
+	store  *EventStore[E]
+	stream Namespace
+	mu     sync.Mutex
+}
+
+func (s *rwp[E]) ReadAt(p []Message[E], pos int64) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	events, ok := s.namespaces[n]
+	events, ok := s.store.namespaces[s.stream]
 	total := len(events)
 	max := len(p)
 
-	if !ok || at > int64(total) {
+	if !ok || pos > int64(total) {
 		return 0, ErrEndOfStream
 	}
 
-	var from = int(at)
+	var from = int(pos)
 	var to = max
 
 	if max >= total {
@@ -137,9 +132,9 @@ func (s *EventStore) readAt(p []Message, n Namespace, at int64) (int, error) {
 	}
 
 	var i int
-	var event Message
-	for i, event = range events[from:to] {
-		p[i] = event
+	var m Message[E]
+	for i, m = range events[from:to] {
+		p[i] = m
 		//fmt.Println("    ", e)
 	}
 
@@ -153,44 +148,27 @@ func (s *EventStore) readAt(p []Message, n Namespace, at int64) (int, error) {
 		return i + 1, nil
 	}
 
-	if int64(total) == at {
+	if int64(total) == pos {
 		return 0, ErrEndOfStream
 	}
 
 	return i + 1, ErrEndOfStream
 }
 
-func (s *EventStore) writeAt(m Message, at int64) error {
+func (s *rwp[E]) WriteAt(m []Message[E], pos int64) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if at >= 0 {
-		if int64(len(s.namespaces[m.sequence.namespace])) != at {
-			return ErrConcurrentWrite
+	for i, e := range m {
+		if pos >= 0 {
+			if int64(len(s.store.namespaces[e.namespace])) != pos {
+				return i, ErrConcurrentWrite
+			}
 		}
+
+		s.store.namespaces[e.namespace] = append(s.store.namespaces[e.namespace], e)
+		s.store.all = append(s.store.all, e)
 	}
 
-	s.namespaces[m.sequence.namespace] = append(s.namespaces[m.sequence.namespace], m)
-	s.all = append(s.all, m)
-
-	return nil
-}
-
-type rwAt struct {
-	store  *EventStore
-	stream Namespace
-}
-
-func (s *rwAt) ReadAt(events []Message, pos int64) (n int, err error) {
-	return s.store.readAt(events, s.stream, pos)
-}
-
-func (s *rwAt) WriteAt(events []Message, pos int64) (n int, err error) {
-	for i := range events {
-		if err = s.store.writeAt(events[i], pos+int64(i)); err != nil {
-			return i, err
-		}
-	}
-
-	return len(events), nil
+	return len(m), nil
 }

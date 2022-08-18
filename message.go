@@ -3,16 +3,16 @@ package stream
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
+	"github.com/google/uuid"
 	"time"
 )
 
-type Message struct {
-	typ      Name
-	sequence Sequence
-
+type Message[E any] struct {
+	typ       Type
+	namespace Namespace
+	sequence  int64
 	// body TODO
-	body Event
+	body E
 
 	// meta TODO
 	meta Meta
@@ -34,44 +34,54 @@ type Message struct {
 	author string
 }
 
-func NewMessage(s Sequence, e Event) Message {
-	return Message{
-		sequence:  s,
-		typ:       Name(reflect.TypeOf(e).Name()),
-		body:      e,
-		createdAt: time.Now(),
+func NewMessage[E any](n Namespace, e E, sequence int64) (m Message[E], err error) {
+	m = Message[E]{
+		namespace:   n,
+		sequence:    sequence,
+		body:        e,
+		meta:        Meta{},
+		correlation: "",
+		causation:   "",
+		createdAt:   time.Now(),
+		author:      "",
 	}
+
+	if m.typ, err = NewType(e); err != nil {
+		return m, nil
+	}
+
+	return m, nil
 }
 
-func (m Message) ID() string {
-	return m.sequence.ID()
+func (m Message[E]) ID() ID {
+	return ID(uuid.NewSHA1(uuid.NameSpaceDNS, []byte(m.String())).String())
 }
 
-func (m Message) Sequence() Sequence {
+func (m Message[E]) Sequence() int64 {
 	return m.sequence
 }
 
-func (m Message) Correlate(d ID) Message {
+func (m Message[E]) Correlate(d ID) Message[E] {
 	m.correlation = d
 	return m
 }
 
-func (m Message) Respond(src Message) Message {
-	m.correlation, m.causation = src.correlation, src.sequence.namespace.id
+func (m Message[E]) Respond(src Message[E]) Message[E] {
+	m.correlation, m.causation = src.correlation, src.ID()
 	return m
 }
 
-func (m Message) String() string {
-	return fmt.Sprintf("%s.%s#%d", m.sequence.namespace.id, m.typ, m.sequence.number)
+func (m Message[E]) String() string {
+	return fmt.Sprintf("%s.%s#%d", m.namespace, m.typ, m.sequence)
 }
 
-func (m Message) GoString() string {
+func (m Message[E]) GoString() string {
 	v := view{
-		"ID":          m.sequence.ID(),
-		"Type":        m.sequence.namespace.name + m.typ,
+		"ID":          m.ID(),
+		"Type":        m.namespace.name + m.typ,
 		"Correlation": m.correlation,
 		"Causation":   m.causation,
-		"Namespace":   m.sequence.namespace,
+		"Namespace":   m.namespace,
 		"CreatedAt":   m.createdAt,
 		"Body":        m.body,
 		"Meta":        m.meta,

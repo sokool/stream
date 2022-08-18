@@ -8,12 +8,36 @@ import (
 	"time"
 )
 
+func ExampleNewMessage() {
+	n, err := stream.NewNamespace("k9so234", "Thread")
+	if err != nil {
+		return
+	}
+
+	m1, err := stream.NewMessage(n, ThreadStarted{}, 1)
+	if err != nil {
+		return
+	}
+	fmt.Println(m1)
+
+	m2, err := stream.NewMessage(n, ThreadJoined{}, 2)
+	if err != nil {
+		return
+	}
+	fmt.Println(m2)
+
+	// Output:
+	// k9so234.ThreadStarted#1
+	// k9so234.ThreadJoined#2
+}
+
 func ExampleAggregate_Execute() {
-	threads := &stream.Aggregate[*Thread]{
-		Name: "Thread",
-		OnCreate: func(id stream.ID) (*Thread, error) {
-			return NewThread(string(id)), nil
+	threads := &stream.Aggregate[*Thread, Event]{
+		OnCreate: NewThread,
+		OnRead: func(t *Thread) error {
+			return nil
 		},
+
 		Events: []Event{
 			ThreadStarted{},
 			ThreadJoined{},
@@ -25,19 +49,27 @@ func ExampleAggregate_Execute() {
 		},
 	}
 	id := "k8Duq81o"
-	if err := threads.Execute(id, func(t *Thread) error { return t.Start("elo", "dood") }); err != nil {
-		fmt.Println(err)
+
+	t, err := threads.Read(id)
+	if err != nil {
+		return
 	}
+	fmt.Println(t)
 
-	t, _ := threads.Read(id)
-	t.Message("dood", "elo")
+	if err = t.Start("elo", "dood"); err != nil {
+		return
+	}
+	fmt.Println(t)
 
-	threads.Read()
-	fmt.Printf("%s\n%s", t, threads)
+	if err = threads.Write(t); err != nil {
+		return
+	}
+	fmt.Println(t)
+
 	// Output:
-	//Thread#2
-	//k8Duq81o.ThreadStarted#1
-	//k8Duq81o.ThreadJoined#2
+	// k8Duq81o.Thread#0
+	// k8Duq81o.Thread#0->2
+	// k8Duq81o.Thread#2
 }
 
 type Thread struct {
@@ -58,11 +90,19 @@ type Thread struct {
 		max, num int
 	}
 
-	version int
+	version int64
 }
 
-func NewThread(id string) *Thread {
-	return &Thread{id: id, members: make(Participants)}
+func NewThread(id string) (*Thread, error) {
+	return &Thread{id: id, members: make(Participants)}, nil
+}
+
+func (t *Thread) ID() string {
+	return t.id
+}
+
+func (t *Thread) Version() int64 {
+	return t.version
 }
 
 func (t *Thread) Start(channel string, p Person) error {
@@ -259,9 +299,9 @@ func (t *Thread) Uncommitted(clear bool) []Event {
 
 func (t *Thread) String() string {
 	if s := len(t.uncommitted); s != 0 {
-		return fmt.Sprintf("Thread#%d->%d", t.version, t.version+len(t.uncommitted))
+		return fmt.Sprintf("%s.Thread#%d->%d", t.id, t.version, t.version+int64(len(t.uncommitted)))
 	}
-	return fmt.Sprintf("Thread#%d", t.version)
+	return fmt.Sprintf("%s.Thread#%d", t.id, t.version)
 }
 
 func (t *Thread) commit(events ...Event) error {
@@ -310,9 +350,16 @@ var (
 	ErrParticipantKicked   = errors.New("THREAD: participant has been kicked")
 )
 
+type event struct {
+}
+
+func (e event) ID() string {
+	return "alo"
+}
+
 type (
 	// events
-	Event = any
+	Event any
 
 	ThreadStarted struct {
 		Moderator Person
@@ -341,19 +388,19 @@ type (
 	recalled struct{}
 )
 
-type Threads = stream.Aggregate[*Thread]
+type Threads = stream.Aggregate[*Thread, Event]
 
-func NewThreads() *Threads {
-	return &Threads{
-		Name: "Thread",
-		OnCreate: func(id stream.ID) (*Thread, error) {
-			return NewThread(string(id)), nil
-		},
-		Events:         nil,
-		OnRead:         nil,
-		OnWrite:        nil,
-		OnChange:       nil,
-		OnCacheCleanup: nil,
-	}
-
-}
+//func NewThreads() *Threads {
+//	return &Threads{
+//		Name: "Thread",
+//		OnCreate: func(id stream.ID) (*Thread, error) {
+//			return NewThread(string(id)), nil
+//		},
+//		Events:         nil,
+//		OnRead:         nil,
+//		OnWrite:        nil,
+//		OnChange:       nil,
+//		OnCacheCleanup: nil,
+//	}
+//
+//}

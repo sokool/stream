@@ -5,13 +5,12 @@ import (
 	. "github.com/sokool/stream/example/chat/model"
 )
 
-type Threads = stream.Aggregate[*Thread]
+type Threads = stream.Aggregate[*Thread, Event]
 
 func NewThreads() *Threads {
 	return &Threads{
-		Name: "Thread",
-		OnCreate: func(id stream.ID) (*Thread, error) {
-			return NewThread(string(id)), nil
+		OnCreate: func(id string) (*Thread, error) {
+			return NewThread(id), nil
 		},
 		Events:         nil,
 		OnRead:         nil,

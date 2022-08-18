@@ -2,37 +2,27 @@ package stream_test
 
 import (
 	"fmt"
-	"github.com/sokool/stream/example/chat/model"
-	"github.com/sokool/stream/example/chat/repository"
+	"github.com/sokool/stream"
 	"testing"
 )
 
 func TestAggregates(t *testing.T) {
-	r := repository.NewThreads()
-	d := "abc"
-	err := r.Execute(d, func(m *model.Thread) error {
-		return m.Start("#fire-up", "tom@on.de")
-	})
+	id := "73HdaUj"
+	threads := &stream.Aggregate[*Thread, Event]{OnCreate: NewThread}
+
+	if err := threads.Execute(id, func(t *Thread) error { return t.Start("#fire-up", "tom@on.de") }); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := threads.Execute(id, func(t *Thread) error { return t.Message("tom@on.de", "hi there") }); err != nil {
+		t.Fatal(err)
+	}
+
+	x, err := threads.Read(id)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = r.Execute(d, func(m *model.Thread) error {
-		return m.Start("#fire-up", "tom@on.de")
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fmt.Println(r)
-	//n := stream.MustNamespace("lajf89371.Chat")
-	//s := stream.NewSequence(n)
-	//e := model.ThreadStarted{
-	//	Moderator: "tom@on.de",
-	//	Channel:   "#fire-up",
-	//}
-	//m := stream.NewMessage(s, e)
-	//fmt.Println(m.GoString())
-	//fmt.Println(m.String())
-
+	fmt.Println(threads)
+	fmt.Println(x)
 }

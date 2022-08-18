@@ -1,48 +1,48 @@
 package stream
 
 // Reader
-type Reader interface {
-	Read(m []Message) (n int, err error)
+type Reader[E any] interface {
+	Read(m []Message[E]) (n int, err error)
 }
 
-type ReadWriterCloser interface {
-	Reader
-	Writer
+type ReadWriterCloser[E any] interface {
+	Reader[E]
+	Writer[E]
 	Closer
 }
 
 // ReaderAt
-type ReaderAt interface {
-	ReadAt(m []Message, pos int64) (n int, err error)
+type ReaderAt[E any] interface {
+	ReadAt(m []Message[E], pos int64) (n int, err error)
 }
 
-type ReaderFrom interface {
-	ReadFrom(r Reader) (n int64, err error)
+type ReaderFrom[E any] interface {
+	ReadFrom(r Reader[E]) (n int64, err error)
 }
 
 type Closer interface {
 	Close(error) error
 }
 
-type ReadWriterAt interface {
-	ReaderAt
-	WriterAt
+type ReadWriterAt[E any] interface {
+	ReaderAt[E]
+	WriterAt[E]
 }
 
-type Writer interface {
-	Write(m []Message) (n int, err error)
+type Writer[E any] interface {
+	Write(m []Message[E]) (n int, err error)
 }
 
-type WriteCloser interface {
-	Writer
+type WriteCloser[E any] interface {
+	Writer[E]
 	Closer
 }
 
 // WriterAt store messages in Entity starting from pos... todo
-type WriterAt interface {
-	WriteAt(m []Message, pos int64) (n int, err error)
+type WriterAt[E any] interface {
+	WriteAt(m []Message[E], pos int64) (n int, err error)
 }
 
-type WriterTo interface {
-	WriteTo(w Writer) (n int64, err error)
+type WriterTo[E any] interface {
+	WriteTo(w Writer[E]) (n int64, err error)
 }
