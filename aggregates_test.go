@@ -1,58 +1,38 @@
-package stream
+package stream_test
 
 import (
 	"fmt"
+	"github.com/sokool/stream/example/chat/model"
+	"github.com/sokool/stream/example/chat/repository"
 	"testing"
-	"time"
 )
 
 func TestAggregates(t *testing.T) {
-	c := Aggregate[*chat]{
-		Type: "chat",
-		OnCreate: func(id ID) (*chat, error) {
-			return newChat(id.String())
-		},
-	}
-
-	n := NewAggregates(c)
-	d := MustID("911.chat")
-	err := n.Execute(d, func(c *chat) error {
-		fmt.Println("exec", c)
-		return nil
+	r := repository.NewThreads()
+	d := "abc"
+	err := r.Execute(d, func(m *model.Thread) error {
+		return m.Start("#fire-up", "tom@on.de")
 	})
-
 	if err != nil {
 		t.Fatal(err)
 	}
-}
 
-type chat struct {
-	id string
-}
+	err = r.Execute(d, func(m *model.Thread) error {
+		return m.Start("#fire-up", "tom@on.de")
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-func newChat(id string) (*chat, error) {
-	return &chat{id}, nil
+	fmt.Println(r)
+	//n := stream.MustNamespace("lajf89371.Chat")
+	//s := stream.NewSequence(n)
+	//e := model.ThreadStarted{
+	//	Moderator: "tom@on.de",
+	//	Channel:   "#fire-up",
+	//}
+	//m := stream.NewMessage(s, e)
+	//fmt.Println(m.GoString())
+	//fmt.Println(m.String())
 
-}
-
-func (r *chat) ID() string {
-	return r.id
-}
-
-func (r *chat) Name() string {
-	return "chat"
-}
-
-func (r *chat) Uncommitted(b bool) []Event {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (r *chat) Commit(event Event, time time.Time) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (r *chat) String() string {
-	return r.id
 }

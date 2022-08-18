@@ -1,30 +1,21 @@
 package stream
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"reflect"
+	"time"
+)
 
 type Message struct {
-	ID
-	Type
+	typ      Name
+	sequence Sequence
 
 	// body TODO
-	body []byte
+	body Event
 
 	// meta TODO
-	meta []byte
-
-	// sequence number in a stream.
-	//
-	// When zero, then Message is not transactional, therefore Writer can save
-	// message without acknowledge or even remain it in memory for a while for
-	// later persistence. It is faster to write such Message but not guaranteed
-	// that will be stored on external device such as database, queue or file.
-	//
-	// When not zero, then stream is considered as transactional - guaranteed
-	// that will be stored in exact place in a stream. Each new Message in
-	// a stream should be sequential - having logical order. Reader should
-	// respect this rule, and throw ErrWrongSequence error when next
-	// message sequence in a stream is not in logical order.
-	sequence int64
+	meta Meta
 
 	// Every Message has 3 ID's [ID, CorrelationID, CausationID]. When you are
 	// responding to a Message (either a Command or and Event) you copy the
@@ -34,14 +25,57 @@ type Message struct {
 	//
 	// Greg Young
 	// --> https://groups.google.com/d/msg/dddcqrs/qGYC6qZEqOI/LhQup9v7EwAJ
-	IDx, CorrelationID, CausationID string
+	correlation, causation ID
 
 	// CreatedAt
-	CreatedAt time.Time
+	createdAt time.Time
 
-	// Author helps to check what person/device generate this Message.
-	Author string
+	// author helps to check what person/device generate this Message.
+	author string
+}
 
-	// Payload TODO
-	value interface{} `json:"-"`
+func NewMessage(s Sequence, e Event) Message {
+	return Message{
+		sequence:  s,
+		typ:       Name(reflect.TypeOf(e).Name()),
+		body:      e,
+		createdAt: time.Now(),
+	}
+}
+
+func (m Message) ID() string {
+	return m.sequence.ID()
+}
+
+func (m Message) Sequence() Sequence {
+	return m.sequence
+}
+
+func (m Message) Correlate(d ID) Message {
+	m.correlation = d
+	return m
+}
+
+func (m Message) Respond(src Message) Message {
+	m.correlation, m.causation = src.correlation, src.sequence.namespace.id
+	return m
+}
+
+func (m Message) String() string {
+	return fmt.Sprintf("%s.%s#%d", m.sequence.namespace.id, m.typ, m.sequence.number)
+}
+
+func (m Message) GoString() string {
+	v := view{
+		"ID":          m.sequence.ID(),
+		"Type":        m.sequence.namespace.name + m.typ,
+		"Correlation": m.correlation,
+		"Causation":   m.causation,
+		"Namespace":   m.sequence.namespace,
+		"CreatedAt":   m.createdAt,
+		"Body":        m.body,
+		"Meta":        m.meta,
+	}
+	b, _ := json.MarshalIndent(v, "", "\t")
+	return fmt.Sprintf("%T\n%s\n", m, b)
 }
