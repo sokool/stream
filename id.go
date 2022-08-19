@@ -1,5 +1,7 @@
 package stream
 
+import "encoding/json"
+
 type ID string
 
 func NewID(s string) (ID, error) {
@@ -14,7 +16,7 @@ func (i ID) MarshalJSON() ([]byte, error) {
 		return null, nil
 	}
 
-	return []byte(i.String()), nil
+	return json.Marshal(i.String())
 }
 
 func (i ID) String() string {

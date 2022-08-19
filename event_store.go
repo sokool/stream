@@ -10,7 +10,7 @@ import (
 type EventStore[E any] interface {
 	Stream(Namespace) ReadWriterAt[E]
 	Read(Query) Reader[E]
-	Write(m []Event[E]) (n int, err error)
+	Write([]Event[E]) (n int, err error)
 }
 
 type Query struct {
@@ -30,12 +30,12 @@ func NewEventStore[E any]() EventStore[E] {
 	return &eventStore[E]{namespaces: make(map[Namespace][]Event[E])}
 }
 
-func (s *eventStore[E]) Write(m []Event[E]) (n int, err error) {
-	for i := range m {
-		s.all = append(s.all, m[i])
-		s.namespaces[m[i].namespace] = append(s.namespaces[m[i].namespace], m[i])
+func (s *eventStore[E]) Write(e []Event[E]) (n int, err error) {
+	for i := range e {
+		s.all = append(s.all, e[i])
+		s.namespaces[e[i].namespace] = append(s.namespaces[e[i].namespace], e[i])
 	}
-	return len(m), nil
+	return len(e), nil
 }
 
 func (s *eventStore[E]) Read(q Query) Reader[E] {

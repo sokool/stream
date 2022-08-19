@@ -1,19 +1,26 @@
 package stream_test
 
-import "testing"
+import (
+	"fmt"
+	"github.com/sokool/stream"
+	"github.com/sokool/stream/example/chat/model"
+	"testing"
+)
 
 func Test(t *testing.T) {
-	type scenario struct {
-		description string
+	c, _ := model.NewThread("48")
+	n, _ := stream.NewNamespace[model.Event](c)
+
+	e, err := stream.NewEvent(n, model.ThreadStarted{}, 1)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	cases := []scenario{
-		{"my first subtest"},
-	}
+	//fmt.Println(e.ID())
+	//fmt.Println(e.Sequence())
+	//fmt.Println(e.Type())
+	//fmt.Println(e.Body())
+	//fmt.Println(e.Namespace())
+	fmt.Println(e.GoString())
 
-	for _, c := range cases {
-		t.Run(c.description, func(t *testing.T) {
-			t.Fatalf("expected:%v got:%v", "", "")
-		})
-	}
 }

@@ -89,7 +89,8 @@ func (a *Aggregate[R, E]) Read(id string) (r R, err error) {
 	}
 
 	var n Namespace
-	if n, err = a.namespace(r); err != nil {
+
+	if n, err = NewNamespace[E](r); err != nil {
 		return r, err
 	}
 
@@ -129,12 +130,12 @@ func (a *Aggregate[R, E]) Read(id string) (r R, err error) {
 }
 
 func (a *Aggregate[R, E]) Write(r R) error {
-	mm, err := a.events(r)
+	ee, err := NewEvents[E](r)
 	if err != nil {
 		return err
 	}
 
-	if len(mm) == 0 {
+	if len(ee) == 0 {
 		return nil
 	}
 
@@ -144,20 +145,17 @@ func (a *Aggregate[R, E]) Write(r R) error {
 		}
 	}
 
-	var n, m, _ = 0, len(mm), time.Now()
-	switch n, err = a.store.Write(mm); {
-
+	var n int
+	switch n, err = a.store.Write(ee); {
 	case err != nil:
 		return err
 
-	case n != m:
+	case n != len(ee):
 		return ErrShortWrite
-
-	default:
 
 	}
 
-	if err = a.commit(r, mm); err != nil {
+	if err = a.commit(r, ee); err != nil {
 		return err
 	}
 
@@ -202,12 +200,11 @@ func (a *Aggregate[R, E]) namespace(r R) (n Namespace, err error) {
 func (a *Aggregate[R, E]) events(r R) (s []Event[E], err error) {
 	var n Namespace
 	var m Event[E]
-	if n, err = a.namespace(r); err != nil {
+	if n, err = NewNamespace[E](r); err != nil {
 		return s, nil
 	}
 
-	var ee = r.Uncommitted(true)
-	for i, e := range ee {
+	for i, e := range r.Uncommitted(true) {
 		if m, err = NewEvent(n, e, r.Version()+int64(i)+1); err != nil {
 			return s, err
 		}
@@ -242,7 +239,7 @@ func (a *Aggregate[R, E]) String() (s string) {
 		return
 	}
 	for i := range es.all {
-		s += fmt.Sprintf("%s\n", es.all[i])
+		s += fmt.Sprintf("%s\n", es.all[i].String())
 	}
 	return
 }

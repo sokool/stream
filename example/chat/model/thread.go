@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/teris-io/shortid"
@@ -11,8 +12,8 @@ type Thread struct {
 	id              string
 	uncommitted     []Event
 	started, closed bool
-	moderator       Person
-	members         Participants
+	moderator       Member
+	members         Members
 	messages        int
 
 	settings struct {
@@ -28,8 +29,8 @@ type Thread struct {
 	version int64
 }
 
-func NewThread(id string) *Thread {
-	return &Thread{id: id, members: make(Participants)}
+func NewThread(id string) (*Thread, error) {
+	return &Thread{id: id, members: make(Members)}, nil
 }
 
 func (t *Thread) ID() string {
@@ -40,7 +41,7 @@ func (t *Thread) Version() int64 {
 	return t.version
 }
 
-func (t *Thread) Start(channel string, p Person) error {
+func (t *Thread) Start(channel string, p Member) error {
 	switch {
 	case t.started:
 		return nil
@@ -55,7 +56,7 @@ func (t *Thread) Start(channel string, p Person) error {
 	)
 }
 
-func (t *Thread) Join(p Person) error {
+func (t *Thread) Join(p Member) error {
 	switch {
 	case !t.started:
 		return ErrNotExists
@@ -76,7 +77,7 @@ func (t *Thread) Join(p Person) error {
 	)
 }
 
-func (t *Thread) Message(p Person, text string) error {
+func (t *Thread) Message(p Member, text string) error {
 	switch {
 	case !t.started:
 		return ErrNotExists
@@ -98,7 +99,7 @@ func (t *Thread) Reply(on, participant, text string) error {
 	return nil
 }
 
-func (t *Thread) Leave(p Person) error {
+func (t *Thread) Leave(p Member) error {
 	switch {
 	case !t.started:
 		return ErrNotExists
@@ -115,7 +116,7 @@ func (t *Thread) Leave(p Person) error {
 	)
 }
 
-func (t *Thread) Kick(moderator, p Person) error {
+func (t *Thread) Kick(moderator, p Member) error {
 	switch {
 	case !t.started:
 		return ErrNotExists
@@ -135,7 +136,7 @@ func (t *Thread) Kick(moderator, p Person) error {
 	)
 }
 
-func (t *Thread) Mute(p Person, reason string) error {
+func (t *Thread) Mute(p Member, reason string) error {
 	if !t.members.isPresent(p) {
 		return nil
 	}
@@ -145,7 +146,7 @@ func (t *Thread) Mute(p Person, reason string) error {
 	)
 }
 
-func (t *Thread) Close(moderator Person) error {
+func (t *Thread) Close(moderator Member) error {
 	switch {
 	case !t.started:
 		return ErrNotExists
@@ -232,42 +233,16 @@ func (t *Thread) Uncommitted(clear bool) []Event {
 	return t.uncommitted
 }
 
+func (t *Thread) String() string {
+	if s := len(t.uncommitted); s != 0 {
+		return fmt.Sprintf("%s.Thread#%d->%d", t.id, t.version, t.version+int64(len(t.uncommitted)))
+	}
+	return fmt.Sprintf("%s.Thread#%d", t.id, t.version)
+}
+
 func (t *Thread) commit(events ...Event) error {
 	t.uncommitted = append(t.uncommitted, events...)
 	return nil
-}
-
-type Person string
-
-type Participants map[Person]bool
-
-func (p Participants) join(n Person) {
-	p[n] = true
-}
-
-func (p Participants) isPresent(n Person) bool {
-	_, found := p[n]
-	return found
-}
-
-func (p Participants) isKicked(n Person) bool {
-	if active, found := p[n]; !active && found {
-		return true
-	}
-
-	return false
-}
-
-func (p Participants) remove(n Person) {
-	delete(p, n)
-}
-
-func (p Participants) kick(n Person) {
-	p[n] = false
-}
-
-func (p Participants) count() int {
-	return len(p)
 }
 
 var (
@@ -279,29 +254,28 @@ var (
 )
 
 type (
-	// events
-	Event = any
+	Event any
 
 	ThreadStarted struct {
-		Moderator Person
+		Moderator Member
 		Channel   string
 	}
 	ThreadJoined struct {
-		Participant Person
+		Participant Member
 	}
 	ThreadMessage struct {
 		ID          string
-		Participant Person
+		Participant Member
 		Text        string
 	}
 	ThreadLeft struct {
-		Participant Person
+		Participant Member
 	}
 	ThreadKicked struct {
-		Participant Person
+		Participant Member
 	}
 	ThreadMuted struct {
-		Participant Person
+		Participant Member
 		Reason      string
 	}
 	ThreadClosed struct{}

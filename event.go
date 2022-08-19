@@ -3,7 +3,6 @@ package stream
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"time"
 )
 
@@ -11,6 +10,7 @@ type Event[E any] struct {
 	typ       Type
 	namespace Namespace
 	sequence  int64
+
 	// body TODO
 	body E
 
@@ -50,17 +50,38 @@ func NewEvent[E any](n Namespace, e E, sequence int64) (m Event[E], err error) {
 		return m, nil
 	}
 
+	if sequence <= 0 {
+		return m, Err("invalid event sequence")
+	}
+
 	return m, nil
+}
+
+func NewEvents[E any](r Root[E]) (ee []Event[E], err error) {
+	var n Namespace
+	var e Event[E]
+	if n, err = NewNamespace[E](r); err != nil {
+		return nil, err
+	}
+
+	for i, m := range r.Uncommitted(true) {
+		if e, err = NewEvent(n, m, r.Version()+int64(i)+1); err != nil {
+			return nil, err
+		}
+		ee = append(ee, e)
+	}
+
+	return ee, nil
 }
 
 //func DecodeEvent[E any]()
 
 func (e Event[E]) ID() ID {
-	return ID(uuid.NewSHA1(uuid.NameSpaceDNS, []byte(e.String())).String())
+	return uid(e)
 }
 
 func (e Event[E]) Type() Type {
-	return Type("")
+	return e.typ
 }
 
 func (e Event[E]) Namespace() Namespace {
@@ -100,6 +121,7 @@ func (e Event[E]) GoString() string {
 		"Body":        e.body,
 		"Meta":        e.meta,
 	}
-	b, _ := json.MarshalIndent(v, "", "\t")
+	b, err := json.MarshalIndent(v, "", "\t")
+	fmt.Println(err)
 	return fmt.Sprintf("%T\n%s\n", e, b)
 }
