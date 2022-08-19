@@ -14,13 +14,13 @@ func ExampleNewMessage() {
 		return
 	}
 
-	m1, err := stream.NewMessage(n, ThreadStarted{}, 1)
+	m1, err := stream.NewEvent(n, ThreadStarted{}, 1)
 	if err != nil {
 		return
 	}
 	fmt.Println(m1)
 
-	m2, err := stream.NewMessage(n, ThreadJoined{}, 2)
+	m2, err := stream.NewEvent(n, ThreadJoined{}, 2)
 	if err != nil {
 		return
 	}
@@ -349,13 +349,6 @@ var (
 	ErrParticipantNotFound = errors.New("THREAD: participant not found")
 	ErrParticipantKicked   = errors.New("THREAD: participant has been kicked")
 )
-
-type event struct {
-}
-
-func (e event) ID() string {
-	return "alo"
-}
 
 type (
 	// events

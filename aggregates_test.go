@@ -2,13 +2,12 @@ package stream_test
 
 import (
 	"fmt"
-	"github.com/sokool/stream"
 	"testing"
 )
 
 func TestAggregates(t *testing.T) {
 	id := "73HdaUj"
-	threads := &stream.Aggregate[*Thread, Event]{OnCreate: NewThread}
+	threads := &Threads{OnCreate: NewThread}
 
 	if err := threads.Execute(id, func(t *Thread) error { return t.Start("#fire-up", "tom@on.de") }); err != nil {
 		t.Fatal(err)

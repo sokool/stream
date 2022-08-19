@@ -28,7 +28,6 @@ func NewCache[K comparable, V any](cleanupAfter ...time.Duration) *Cache[K, V] {
 }
 
 func (c Cache[K, V]) Get(key K) (V, bool) {
-
 	v, ok := c.list[key]
 	return v, ok
 }

@@ -7,10 +7,10 @@ import (
 	"time"
 )
 
-type Events[E any] interface {
+type EventStore[E any] interface {
 	Stream(Namespace) ReadWriterAt[E]
 	Read(Query) Reader[E]
-	Write(m []Message[E]) (n int, err error)
+	Write(m []Event[E]) (n int, err error)
 }
 
 type Query struct {
@@ -20,17 +20,17 @@ type Query struct {
 	Shutdown   context.Context
 }
 
-type EventStore[E any] struct {
+type eventStore[E any] struct {
 	mu         sync.Mutex
-	namespaces map[Namespace][]Message[E]
-	all        []Message[E]
+	namespaces map[Namespace][]Event[E]
+	all        []Event[E]
 }
 
-func NewEvents[E any]() *EventStore[E] {
-	return &EventStore[E]{namespaces: make(map[Namespace][]Message[E])}
+func NewEventStore[E any]() EventStore[E] {
+	return &eventStore[E]{namespaces: make(map[Namespace][]Event[E])}
 }
 
-func (s *EventStore[E]) Write(m []Message[E]) (n int, err error) {
+func (s *eventStore[E]) Write(m []Event[E]) (n int, err error) {
 	for i := range m {
 		s.all = append(s.all, m[i])
 		s.namespaces[m[i].namespace] = append(s.namespaces[m[i].namespace], m[i])
@@ -38,7 +38,7 @@ func (s *EventStore[E]) Write(m []Message[E]) (n int, err error) {
 	return len(m), nil
 }
 
-func (s *EventStore[E]) Read(q Query) Reader[E] {
+func (s *eventStore[E]) Read(q Query) Reader[E] {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -58,11 +58,11 @@ func (s *EventStore[E]) Read(q Query) Reader[E] {
 
 }
 
-func (s *EventStore[E]) Stream(n Namespace) ReadWriterAt[E] {
+func (s *eventStore[E]) Stream(n Namespace) ReadWriterAt[E] {
 	return &rwp[E]{stream: n, store: s}
 }
 
-func (s *EventStore[E]) Types() []Namespace {
+func (s *eventStore[E]) Types() []Namespace {
 	var st []Namespace
 	for i := range s.namespaces {
 		st = append(st, s.namespaces[i][len(s.namespaces[i])-1].namespace)
@@ -71,7 +71,7 @@ func (s *EventStore[E]) Types() []Namespace {
 	return st
 }
 
-func (s *EventStore[E]) WriteTo(w Writer[E]) (int64, error) {
+func (s *eventStore[E]) WriteTo(w Writer[E]) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -79,20 +79,20 @@ func (s *EventStore[E]) WriteTo(w Writer[E]) (int64, error) {
 	return int64(nn), err
 }
 
-func (s *EventStore[E]) Clear() {
+func (s *eventStore[E]) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.all, s.namespaces = []Message[E]{}, make(map[Namespace][]Message[E])
+	s.all, s.namespaces = []Event[E]{}, make(map[Namespace][]Event[E])
 }
 
-func (s *EventStore[E]) Size() (streams int, events int) {
+func (s *eventStore[E]) Size() (streams int, events int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return len(s.namespaces), len(s.all)
 }
 
-func (s *EventStore[E]) String() (t string) {
+func (s *eventStore[E]) String() (t string) {
 	for i := range s.all {
 		t += fmt.Sprintf("%s", s.all[i])
 	}
@@ -100,18 +100,18 @@ func (s *EventStore[E]) String() (t string) {
 }
 
 type rwp[E any] struct {
-	store  *EventStore[E]
+	store  *eventStore[E]
 	stream Namespace
 	mu     sync.Mutex
 }
 
-func (s *rwp[E]) ReadAt(p []Message[E], pos int64) (int, error) {
+func (s *rwp[E]) ReadAt(e []Event[E], pos int64) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	events, ok := s.store.namespaces[s.stream]
 	total := len(events)
-	max := len(p)
+	max := len(e)
 
 	if !ok || pos > int64(total) {
 		return 0, ErrEndOfStream
@@ -132,9 +132,9 @@ func (s *rwp[E]) ReadAt(p []Message[E], pos int64) (int, error) {
 	}
 
 	var i int
-	var m Message[E]
+	var m Event[E]
 	for i, m = range events[from:to] {
-		p[i] = m
+		e[i] = m
 		//fmt.Println("    ", e)
 	}
 
@@ -155,11 +155,11 @@ func (s *rwp[E]) ReadAt(p []Message[E], pos int64) (int, error) {
 	return i + 1, ErrEndOfStream
 }
 
-func (s *rwp[E]) WriteAt(m []Message[E], pos int64) (int, error) {
+func (s *rwp[E]) WriteAt(e []Event[E], pos int64) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for i, e := range m {
+	for i, e := range e {
 		if pos >= 0 {
 			if int64(len(s.store.namespaces[e.namespace])) != pos {
 				return i, ErrConcurrentWrite
@@ -170,5 +170,5 @@ func (s *rwp[E]) WriteAt(m []Message[E], pos int64) (int, error) {
 		s.store.all = append(s.store.all, e)
 	}
 
-	return len(m), nil
+	return len(e), nil
 }

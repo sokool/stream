@@ -57,7 +57,7 @@ type Aggregate[R Root[E], E any] struct {
 	mu     sync.Mutex
 
 	// store
-	store Events[E]
+	store EventStore[E]
 }
 
 func (a *Aggregate[R, E]) Execute(id string, c RootFunc[R, E]) error {
@@ -94,10 +94,10 @@ func (a *Aggregate[R, E]) Read(id string) (r R, err error) {
 	}
 
 	if a.store == nil {
-		a.store = NewEvents[E]()
+		a.store = NewEventStore[E]()
 	}
 
-	es, mm, c := a.store.Stream(n), make([]Message[E], 8), 0
+	es, mm, c := a.store.Stream(n), make([]Event[E], 8), 0
 	for {
 		switch c, err = es.ReadAt(mm, r.Version()); {
 
@@ -129,7 +129,7 @@ func (a *Aggregate[R, E]) Read(id string) (r R, err error) {
 }
 
 func (a *Aggregate[R, E]) Write(r R) error {
-	mm, err := a.messages(r)
+	mm, err := a.events(r)
 	if err != nil {
 		return err
 	}
@@ -199,16 +199,16 @@ func (a *Aggregate[R, E]) namespace(r R) (n Namespace, err error) {
 	return n, nil
 }
 
-func (a *Aggregate[R, E]) messages(r R) (s []Message[E], err error) {
+func (a *Aggregate[R, E]) events(r R) (s []Event[E], err error) {
 	var n Namespace
-	var m Message[E]
+	var m Event[E]
 	if n, err = a.namespace(r); err != nil {
 		return s, nil
 	}
 
 	var ee = r.Uncommitted(true)
 	for i, e := range ee {
-		if m, err = NewMessage(n, e, r.Version()+int64(i)+1); err != nil {
+		if m, err = NewEvent(n, e, r.Version()+int64(i)+1); err != nil {
 			return s, err
 		}
 		s = append(s, m)
@@ -217,7 +217,7 @@ func (a *Aggregate[R, E]) messages(r R) (s []Message[E], err error) {
 	return s, nil
 }
 
-func (a *Aggregate[R, E]) commit(r R, m []Message[E]) error {
+func (a *Aggregate[R, E]) commit(r R, m []Event[E]) error {
 	if len(m) == 0 {
 		return nil
 	}
@@ -237,7 +237,7 @@ func (a *Aggregate[R, E]) commit(r R, m []Message[E]) error {
 }
 
 func (a *Aggregate[R, E]) String() (s string) {
-	es, ok := a.store.(*EventStore[E])
+	es, ok := a.store.(*eventStore[E])
 	if !ok {
 		return
 	}
@@ -257,3 +257,5 @@ type Root[E any] interface {
 type RootFunc[R Root[E], E any] func(R) error
 
 type Context = context.Context
+
+type expired interface{ CacheTimeout() time.Duration }
