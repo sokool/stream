@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// Aggregate is todo :)
 type Aggregate[R Root[E], E any] struct {
 	// Description
 	Description string
