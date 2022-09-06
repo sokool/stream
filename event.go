@@ -122,6 +122,9 @@ func (e Event[E]) GoString() string {
 		"Meta":        e.meta,
 	}
 	b, err := json.MarshalIndent(v, "", "\t")
-	fmt.Println(err)
+	if err != nil {
+		return err.Error()
+	}
+
 	return fmt.Sprintf("%T\n%s\n", e, b)
 }
