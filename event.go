@@ -57,25 +57,6 @@ func NewEvent[E any](n Namespace, e E, sequence int64) (m Event[E], err error) {
 	return m, nil
 }
 
-func NewEvents(r Root) (ee Events, err error) {
-	var n Namespace
-	var e Event[any]
-	if n, err = NewNamespace(r); err != nil {
-		return nil, err
-	}
-
-	for i, m := range r.Uncommitted(true) {
-		if e, err = NewEvent(n, m, r.Version()+int64(i)+1); err != nil {
-			return nil, err
-		}
-		ee = append(ee, e)
-	}
-
-	return ee, nil
-}
-
-//func DecodeEvent[E any]()
-
 func (e Event[E]) ID() ID {
 	return uid(e)
 }
@@ -130,3 +111,23 @@ func (e Event[E]) GoString() string {
 }
 
 type Events []Event[any]
+
+func NewEvents(r Root) (ee Events, err error) {
+	var n Namespace
+	var e Event[any]
+	var v = r.Version() + 1
+	if n, err = NewNamespace(r); err != nil {
+		return nil, err
+	}
+
+	for i, m := range r.Uncommitted(true) {
+		if e, err = NewEvent(n, m, v+int64(i)); err != nil {
+			return nil, err
+		}
+		ee = append(ee, e)
+	}
+
+	return ee, nil
+}
+
+//func DecodeEvent[E any]()
