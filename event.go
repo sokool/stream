@@ -57,7 +57,7 @@ func NewEvent[E any](n Namespace, e E, sequence int64) (m Event[E], err error) {
 	return m, nil
 }
 
-func NewEvents(r Root) (ee []Event[any], err error) {
+func NewEvents(r Root) (ee Events, err error) {
 	var n Namespace
 	var e Event[any]
 	if n, err = NewNamespace(r); err != nil {
@@ -128,3 +128,5 @@ func (e Event[E]) GoString() string {
 
 	return fmt.Sprintf("%T\n%s\n", e, b)
 }
+
+type Events []Event[any]

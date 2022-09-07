@@ -2,7 +2,7 @@ package stream
 
 // Reader
 type Reader interface {
-	Read(m []Event[any]) (n int, err error)
+	Read(Events) (n int, err error)
 }
 
 type ReadWriterCloser interface {
@@ -13,7 +13,7 @@ type ReadWriterCloser interface {
 
 // ReaderAt
 type ReaderAt interface {
-	ReadAt(m []Event[any], pos int64) (n int, err error)
+	ReadAt(e Events, pos int64) (n int, err error)
 }
 
 type ReaderFrom interface {
@@ -30,19 +30,19 @@ type ReadWriterAt interface {
 }
 
 type Writer interface {
-	Write(m []Event[any]) (n int, err error)
+	Write(Events) (n int, err error)
 }
 
-type WriteCloser[E any] interface {
+type WriteCloser interface {
 	Writer
 	Closer
 }
 
 // WriterAt store event in Entity starting from pos... todo
 type WriterAt interface {
-	WriteAt(m []Event[any], pos int64) (n int, err error)
+	WriteAt(m Events, pos int64) (n int, err error)
 }
 
 type WriterTo interface {
-	WriteTo(w Writer) (n int64, err error)
+	WriteTo(Writer) (n int64, err error)
 }
