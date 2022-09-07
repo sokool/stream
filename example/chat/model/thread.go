@@ -254,7 +254,7 @@ var (
 )
 
 type (
-	Event any
+	Event = any
 
 	ThreadStarted struct {
 		Moderator Member

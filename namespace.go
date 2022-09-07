@@ -10,7 +10,7 @@ type Namespace struct {
 	name Type
 }
 
-func NewNamespace[E any](r Root[E]) (n Namespace, err error) {
+func NewNamespace(r Root) (n Namespace, err error) {
 	if n.id, err = NewID(r.ID()); err != nil {
 		return n, Err("invalid namespace id %w", err)
 	}
@@ -63,6 +63,14 @@ func NewNamespace[E any](r Root[E]) (n Namespace, err error) {
 //
 //	return n
 //}
+
+func (n Namespace) ID() ID {
+	return n.id
+}
+
+func (n Namespace) Type() Type {
+	return n.name
+}
 
 func (n Namespace) MarshalJSON() ([]byte, error) {
 	return json.Marshal(n.String())

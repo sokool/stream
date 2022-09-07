@@ -8,34 +8,34 @@ import (
 )
 
 // Aggregate is todo :)
-type Aggregate[R Root[E], E any] struct {
+type Aggregate[R Root] struct {
 	// Description
 	Description string
 
-	// OnCreate creates stream event appender, where business related events chang
-	// state of underlying structure
+	// OnCreate creates aggregate root (business entity).
+	// It is kept in memory
 	OnCreate func(string) (R, error)
 
 	// Events
-	Events []E
+	//Events []E
 
 	// OnSession called on command dispatch when Session not exists
 	//OnSession func(R) (Session, error)
 
 	// OnRead when all events are committed to R and state is rebuild from all previously persisted Event
-	OnRead RootFunc[R, E]
+	OnRead RootFunc[R]
 
 	// OnRecall
 	//OnRecall func(Session, R) error
 
 	// OnWrite called just before events are persisted to database
-	OnWrite RootFunc[R, E]
+	OnWrite RootFunc[R]
 
-	// OnChange
-	OnChange RootFunc[R, E]
+	// OnCommit
+	OnCommit func(R, []Event[any]) error
 
 	// OnCacheCleanup when aggregate is removed from memory
-	OnCacheCleanup RootFunc[R, E]
+	OnCacheCleanup RootFunc[R]
 
 	// RecallAfter default
 	//RecallAfter time.Duration
@@ -58,17 +58,17 @@ type Aggregate[R Root[E], E any] struct {
 	mu     sync.Mutex
 
 	// store
-	store EventStore[E]
+	store EventStore
 }
 
-func (a *Aggregate[R, E]) Execute(id string, c RootFunc[R, E]) error {
+func (a *Aggregate[R]) Execute(id string, command RootFunc[R]) error {
 	for {
 		r, err := a.Read(id)
 		if err != nil {
 			return err
 		}
 
-		if err = c(r); err != nil {
+		if err = command(r); err != nil {
 			return err
 		}
 
@@ -84,31 +84,31 @@ func (a *Aggregate[R, E]) Execute(id string, c RootFunc[R, E]) error {
 	}
 }
 
-func (a *Aggregate[R, E]) Read(id string) (r R, err error) {
-	if r, err = a.create(id); err != nil {
+func (a *Aggregate[R]) Read(id string) (r R, err error) {
+	if r, err = a.read(id); err != nil {
 		return r, err
 	}
 
 	var n Namespace
 
-	if n, err = NewNamespace[E](r); err != nil {
+	if n, err = NewNamespace(r); err != nil {
 		return r, err
 	}
 
 	if a.store == nil {
-		a.store = NewEventStore[E]()
+		a.store = NewEventStore()
 	}
 
-	es, mm, c := a.store.Stream(n), make([]Event[E], 8), 0
+	store, events, m := a.store.Stream(n), make([]Event[any], 8), 0
 	for {
-		switch c, err = es.ReadAt(mm, r.Version()); {
+		switch m, err = store.ReadAt(events, r.Version()); {
 
 		case err == ErrEndOfStream || err == nil:
-			if c == 0 {
+			if m == 0 {
 				return r, nil
 			}
 
-			if failed := a.commit(r, mm[:c]); failed != nil {
+			if failed := a.commit(r, events[:m]); failed != nil {
 				return r, failed
 			}
 
@@ -122,7 +122,7 @@ func (a *Aggregate[R, E]) Read(id string) (r R, err error) {
 				}
 			}
 
-			return r, a.memory.Set(id, r)
+			return r, nil
 
 		default:
 			return r, Err("%s root read failed due %w", r, err)
@@ -130,14 +130,28 @@ func (a *Aggregate[R, E]) Read(id string) (r R, err error) {
 	}
 }
 
-func (a *Aggregate[R, E]) Write(r R) error {
-	ee, err := NewEvents[E](r)
+func (a *Aggregate[R]) Write(r R) error {
+	events, err := NewEvents(r)
 	if err != nil {
 		return err
 	}
 
-	if len(ee) == 0 {
+	if len(events) == 0 {
 		return nil
+	}
+
+	var n int
+	switch n, err = a.store.Write(events); {
+	case err != nil:
+		return err
+
+	case n != len(events):
+		return ErrShortWrite
+
+	}
+
+	if err = a.commit(r, events); err != nil {
+		return err
 	}
 
 	if a.OnWrite != nil {
@@ -146,30 +160,10 @@ func (a *Aggregate[R, E]) Write(r R) error {
 		}
 	}
 
-	var n int
-	switch n, err = a.store.Write(ee); {
-	case err != nil:
-		return err
-
-	case n != len(ee):
-		return ErrShortWrite
-
-	}
-
-	if err = a.commit(r, ee); err != nil {
-		return err
-	}
-
-	if a.OnChange != nil {
-		if err = a.OnChange(r); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-func (a *Aggregate[R, E]) create(id string) (R, error) {
+func (a *Aggregate[R]) read(id string) (R, error) {
 	if a.memory == nil {
 		a.memory = NewCache[string, R](a.CleanCacheAfter)
 	}
@@ -186,43 +180,20 @@ func (a *Aggregate[R, E]) create(id string) (R, error) {
 	return r, nil
 }
 
-func (a *Aggregate[R, E]) namespace(r R) (n Namespace, err error) {
-	if n.id, err = NewID(r.ID()); err != nil {
-		return n, Err("invalid namespace id %w", err)
-	}
-
-	if n.name, err = NewType(r); err != nil {
-		return n, Err("invalid namespace name %w", err)
-	}
-
-	return n, nil
-}
-
-func (a *Aggregate[R, E]) events(r R) (s []Event[E], err error) {
-	var n Namespace
-	var m Event[E]
-	if n, err = NewNamespace[E](r); err != nil {
-		return s, nil
-	}
-
-	for i, e := range r.Uncommitted(true) {
-		if m, err = NewEvent(n, e, r.Version()+int64(i)+1); err != nil {
-			return s, err
-		}
-		s = append(s, m)
-	}
-
-	return s, nil
-}
-
-func (a *Aggregate[R, E]) commit(r R, m []Event[E]) error {
-	if len(m) == 0 {
+func (a *Aggregate[R]) commit(r R, e []Event[any]) error {
+	if len(e) == 0 {
 		return nil
 	}
 
+	if a.OnCommit != nil {
+		if err := a.OnCommit(r, e); err != nil {
+			return err
+		}
+	}
+
 	//var s int64
-	for i := range m {
-		if err := r.Commit(m[i].body, m[i].createdAt); err != nil {
+	for i := range e {
+		if err := r.Commit(e[i].body, e[i].createdAt); err != nil {
 			return err
 		}
 
@@ -231,11 +202,11 @@ func (a *Aggregate[R, E]) commit(r R, m []Event[E]) error {
 
 	//a.version = events[len(events)-1].Sequence
 	//a.size += s
-	return nil
+	return a.memory.Set(r.ID(), r)
 }
 
-func (a *Aggregate[R, E]) String() (s string) {
-	es, ok := a.store.(*eventStore[E])
+func (a *Aggregate[R]) String() (s string) {
+	es, ok := a.store.(*eventStore)
 	if !ok {
 		return
 	}
@@ -245,14 +216,14 @@ func (a *Aggregate[R, E]) String() (s string) {
 	return
 }
 
-type Root[E any] interface {
+type Root interface {
 	ID() string
 	Version() int64
-	Uncommitted(clear bool) []E
-	Commit(E, time.Time) error
+	Uncommitted(clear bool) (events []any)
+	Commit(event any, createdAt time.Time) error
 }
 
-type RootFunc[R Root[E], E any] func(R) error
+type RootFunc[R Root] func(R) error
 
 type Context = context.Context
 

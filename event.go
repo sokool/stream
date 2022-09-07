@@ -57,10 +57,10 @@ func NewEvent[E any](n Namespace, e E, sequence int64) (m Event[E], err error) {
 	return m, nil
 }
 
-func NewEvents[E any](r Root[E]) (ee []Event[E], err error) {
+func NewEvents(r Root) (ee []Event[any], err error) {
 	var n Namespace
-	var e Event[E]
-	if n, err = NewNamespace[E](r); err != nil {
+	var e Event[any]
+	if n, err = NewNamespace(r); err != nil {
 		return nil, err
 	}
 

@@ -1,10 +1,12 @@
 package stream
 
 import (
+	"sync"
 	"time"
 )
 
 type Cache[K comparable, V any] struct {
+	mu   sync.Mutex
 	list map[K]V
 }
 
@@ -27,12 +29,18 @@ func NewCache[K comparable, V any](cleanupAfter ...time.Duration) *Cache[K, V] {
 	return &c
 }
 
-func (c Cache[K, V]) Get(key K) (V, bool) {
+func (c *Cache[K, V]) Get(key K) (V, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	v, ok := c.list[key]
 	return v, ok
 }
 
-func (c Cache[K, V]) Set(key K, value V, timeout ...time.Duration) error {
+func (c *Cache[K, V]) Set(key K, value V, timeout ...time.Duration) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.list[key] = value
 	return nil
 }

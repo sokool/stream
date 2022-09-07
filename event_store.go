@@ -7,10 +7,10 @@ import (
 	"time"
 )
 
-type EventStore[E any] interface {
-	Stream(Namespace) ReadWriterAt[E]
-	Read(Query) Reader[E]
-	Write([]Event[E]) (n int, err error)
+type EventStore interface {
+	Stream(Namespace) ReadWriterAt
+	Read(Query) Reader
+	Write([]Event[any]) (n int, err error)
 }
 
 type Query struct {
@@ -20,17 +20,17 @@ type Query struct {
 	Shutdown   context.Context
 }
 
-type eventStore[E any] struct {
+type eventStore struct {
 	mu         sync.Mutex
-	namespaces map[Namespace][]Event[E]
-	all        []Event[E]
+	namespaces map[Namespace][]Event[any]
+	all        []Event[any]
 }
 
-func NewEventStore[E any]() EventStore[E] {
-	return &eventStore[E]{namespaces: make(map[Namespace][]Event[E])}
+func NewEventStore() EventStore {
+	return &eventStore{namespaces: make(map[Namespace][]Event[any])}
 }
 
-func (s *eventStore[E]) Write(e []Event[E]) (n int, err error) {
+func (s *eventStore) Write(e []Event[any]) (n int, err error) {
 	for i := range e {
 		s.all = append(s.all, e[i])
 		s.namespaces[e[i].namespace] = append(s.namespaces[e[i].namespace], e[i])
@@ -38,7 +38,7 @@ func (s *eventStore[E]) Write(e []Event[E]) (n int, err error) {
 	return len(e), nil
 }
 
-func (s *eventStore[E]) Read(q Query) Reader[E] {
+func (s *eventStore) Read(q Query) Reader {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -58,11 +58,11 @@ func (s *eventStore[E]) Read(q Query) Reader[E] {
 
 }
 
-func (s *eventStore[E]) Stream(n Namespace) ReadWriterAt[E] {
-	return &rwp[E]{stream: n, store: s}
+func (s *eventStore) Stream(n Namespace) ReadWriterAt {
+	return &rwp{stream: n, store: s}
 }
 
-func (s *eventStore[E]) Types() []Namespace {
+func (s *eventStore) Types() []Namespace {
 	var st []Namespace
 	for i := range s.namespaces {
 		st = append(st, s.namespaces[i][len(s.namespaces[i])-1].namespace)
@@ -71,7 +71,7 @@ func (s *eventStore[E]) Types() []Namespace {
 	return st
 }
 
-func (s *eventStore[E]) WriteTo(w Writer[E]) (int64, error) {
+func (s *eventStore) WriteTo(w Writer) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -79,33 +79,33 @@ func (s *eventStore[E]) WriteTo(w Writer[E]) (int64, error) {
 	return int64(nn), err
 }
 
-func (s *eventStore[E]) Clear() {
+func (s *eventStore) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.all, s.namespaces = []Event[E]{}, make(map[Namespace][]Event[E])
+	s.all, s.namespaces = []Event[any]{}, make(map[Namespace][]Event[any])
 }
 
-func (s *eventStore[E]) Size() (streams int, events int) {
+func (s *eventStore) Size() (streams int, events int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return len(s.namespaces), len(s.all)
 }
 
-func (s *eventStore[E]) String() (t string) {
+func (s *eventStore) String() (t string) {
 	for i := range s.all {
 		t += fmt.Sprintf("%s", s.all[i])
 	}
 	return
 }
 
-type rwp[E any] struct {
-	store  *eventStore[E]
+type rwp struct {
+	store  *eventStore
 	stream Namespace
 	mu     sync.Mutex
 }
 
-func (s *rwp[E]) ReadAt(e []Event[E], pos int64) (int, error) {
+func (s *rwp) ReadAt(e []Event[any], pos int64) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -132,7 +132,7 @@ func (s *rwp[E]) ReadAt(e []Event[E], pos int64) (int, error) {
 	}
 
 	var i int
-	var m Event[E]
+	var m Event[any]
 	for i, m = range events[from:to] {
 		e[i] = m
 		//fmt.Println("    ", e)
@@ -155,7 +155,7 @@ func (s *rwp[E]) ReadAt(e []Event[E], pos int64) (int, error) {
 	return i + 1, ErrEndOfStream
 }
 
-func (s *rwp[E]) WriteAt(e []Event[E], pos int64) (int, error) {
+func (s *rwp) WriteAt(e []Event[any], pos int64) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
