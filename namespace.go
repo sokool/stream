@@ -6,16 +6,16 @@ import (
 )
 
 type Namespace struct {
-	id   ID
-	name Type
+	stream ID
+	root   Type
 }
 
 func NewNamespace(r Root) (n Namespace, err error) {
-	if n.id, err = NewID(r.ID()); err != nil {
+	if n.stream, err = NewID(r.ID()); err != nil {
 		return n, Err("invalid namespace id %w", err)
 	}
 
-	if n.name, err = NewType(r); err != nil {
+	if n.root, err = NewType(r); err != nil {
 		return n, Err("invalid namespace name %w", err)
 	}
 
@@ -65,21 +65,38 @@ func NewNamespace(r Root) (n Namespace, err error) {
 //}
 
 func (n Namespace) ID() ID {
-	return n.id
+	return n.stream
 }
 
 func (n Namespace) Type() Type {
-	return n.name
+	return n.root
 }
 
 func (n Namespace) MarshalJSON() ([]byte, error) {
 	return json.Marshal(n.String())
 }
 
+//func (n *Namespace) UnmarshalJSON(bytes []byte) error {
+//
+//}
+
 func (n Namespace) String() string {
-	return fmt.Sprintf("%s.%s", n.id, n.name)
+	return fmt.Sprintf("%s.%s", n.stream, n.root)
 }
 
 func (n Namespace) IsZero() bool {
-	return n.id == "" || n.name == ""
+	return n.stream == "" || n.root == ""
+}
+
+type Name struct {
+	event Type
+	root  Namespace
+}
+
+func NewName(r Root, e Event[any]) (n Name, err error) {
+	if n.root, err = NewNamespace(r); err != nil {
+		return
+	}
+
+	return
 }

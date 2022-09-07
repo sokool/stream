@@ -7,9 +7,9 @@ import (
 )
 
 type Event[E any] struct {
-	typ       Type
-	namespace Namespace
-	sequence  int64
+	typ      Type
+	root     Namespace
+	sequence int64
 
 	// body TODO
 	body E
@@ -36,7 +36,7 @@ type Event[E any] struct {
 
 func NewEvent[E any](n Namespace, e E, sequence int64) (m Event[E], err error) {
 	m = Event[E]{
-		namespace:   n,
+		root:        n,
 		sequence:    sequence,
 		body:        e,
 		meta:        Meta{},
@@ -66,7 +66,7 @@ func (e Event[E]) Type() Type {
 }
 
 func (e Event[E]) Namespace() Namespace {
-	return e.namespace
+	return e.root
 }
 
 func (e Event[E]) Sequence() int64 {
@@ -82,22 +82,22 @@ func (e Event[E]) Correlate(d ID) Event[E] {
 	return e
 }
 
-func (e Event[E]) Respond(src Event[E]) Event[E] {
+func (e Event[E]) Respond(src Event[any]) Event[E] {
 	e.correlation, e.causation = src.correlation, src.ID()
 	return e
 }
 
 func (e Event[E]) String() string {
-	return fmt.Sprintf("%s.%s#%d", e.namespace, e.typ, e.sequence)
+	return fmt.Sprintf("%s.%s#%d", e.root, e.typ, e.sequence)
 }
 
 func (e Event[E]) GoString() string {
 	v := view{
 		"ID":          e.ID(),
-		"Type":        e.namespace.name + e.typ,
+		"Type":        e.root.root + e.typ,
 		"Correlation": e.correlation,
 		"Causation":   e.causation,
-		"Namespace":   e.namespace,
+		"Namespace":   e.root,
 		"CreatedAt":   e.createdAt,
 		"Body":        e.body,
 		"Meta":        e.meta,
@@ -108,6 +108,30 @@ func (e Event[E]) GoString() string {
 	}
 
 	return fmt.Sprintf("%T\n%s\n", e, b)
+}
+
+func (e Event[E]) MarshalJSON() ([]byte, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (e Event[E]) UnmarshalJSON(b []byte) (err error) {
+	fmt.Println(string(b))
+	var event struct {
+		Type      Type
+		Namespace Namespace
+		Sequence  int64
+	}
+
+	if err = json.Unmarshal(b, &event); err != nil {
+		return err
+	}
+
+	e.typ = event.Type
+	e.sequence = event.Sequence
+	e.root = event.Namespace
+
+	return nil
 }
 
 type Events []Event[any]

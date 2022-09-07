@@ -35,7 +35,7 @@ func NewEventStore() EventStore {
 func (s *eventStore) Write(e Events) (n int, err error) {
 	for i := range e {
 		s.all = append(s.all, e[i])
-		s.namespaces[e[i].namespace] = append(s.namespaces[e[i].namespace], e[i])
+		s.namespaces[e[i].root] = append(s.namespaces[e[i].root], e[i])
 	}
 	return len(e), nil
 }
@@ -67,7 +67,7 @@ func (s *eventStore) Stream(n Namespace) ReadWriterAt {
 func (s *eventStore) Types() []Namespace {
 	var st []Namespace
 	for i := range s.namespaces {
-		st = append(st, s.namespaces[i][len(s.namespaces[i])-1].namespace)
+		st = append(st, s.namespaces[i][len(s.namespaces[i])-1].root)
 	}
 
 	return st
@@ -163,12 +163,12 @@ func (s *streamStore) WriteAt(e Events, pos int64) (int, error) {
 
 	for i, e := range e {
 		if pos >= 0 {
-			if int64(len(s.store.namespaces[e.namespace])) != pos {
+			if int64(len(s.store.namespaces[e.root])) != pos {
 				return i, ErrConcurrentWrite
 			}
 		}
 
-		s.store.namespaces[e.namespace] = append(s.store.namespaces[e.namespace], e)
+		s.store.namespaces[e.root] = append(s.store.namespaces[e.root], e)
 		s.store.all = append(s.store.all, e)
 	}
 
