@@ -89,26 +89,26 @@ func (a *Aggregate[R]) Read(id string) (r R, err error) {
 		return r, err
 	}
 
-	var n Namespace
+	var n RootID
 
-	if n, err = NewNamespace(r); err != nil {
+	if n, err = NewRootID(r); err != nil {
 		return r, err
 	}
 
 	if a.store == nil {
-		a.store = NewEventStore()
+		a.store = NewMemoryEventStore()
 	}
 
-	store, events, m := a.store.Stream(n), make([]Event[any], 8), 0
+	rw, evs, m := a.store.ReadWriter(n), make([]Event[any], 8), 0
 	for {
-		switch m, err = store.ReadAt(events, r.Version()); {
+		switch m, err = rw.ReadAt(evs, r.Version()); {
 
 		case err == ErrEndOfStream || err == nil:
 			if m == 0 {
 				return r, nil
 			}
 
-			if failed := a.commit(r, events[:m]); failed != nil {
+			if failed := a.commit(r, evs[:m]); failed != nil {
 				return r, failed
 			}
 
@@ -206,7 +206,7 @@ func (a *Aggregate[R]) commit(r R, e []Event[any]) error {
 }
 
 func (a *Aggregate[R]) String() (s string) {
-	es, ok := a.store.(*eventStore)
+	es, ok := a.store.(*store)
 	if !ok {
 		return
 	}
@@ -215,15 +215,6 @@ func (a *Aggregate[R]) String() (s string) {
 	}
 	return
 }
-
-type Root interface {
-	ID() string
-	Version() int64
-	Uncommitted(clear bool) (events []any)
-	Commit(event any, createdAt time.Time) error
-}
-
-type RootFunc[R Root] func(R) error
 
 type Context = context.Context
 

@@ -9,7 +9,7 @@ import (
 
 func Test(t *testing.T) {
 	c, _ := model.NewThread("48")
-	n, _ := stream.NewNamespace(c)
+	n, _ := stream.NewRootID(c)
 
 	e, err := stream.NewEvent(n, model.ThreadStarted{}, 1)
 	if err != nil {

@@ -8,31 +8,35 @@ import (
 )
 
 type EventStore interface {
-	Stream(Namespace) ReadWriterAt
-	Read(Query) Reader
+	ReadWriter(RootID) ReadWriterAt
+	Reader(Query) Reader
 	Write(Events) (n int, err error)
 }
 
 type Query struct {
-	Stream     Namespace
+	Root struct {
+		ID     ID
+		Type   Type
+		Events []Type
+	}
 	From, To   time.Time
 	Descending bool
 	Shutdown   context.Context
 }
 
-type eventStore struct {
+type store struct {
 	mu         sync.Mutex
-	namespaces map[Namespace]Events
+	namespaces map[RootID]Events
 	all        Events
 }
 
-func NewEventStore() EventStore {
-	return &eventStore{
-		namespaces: map[Namespace]Events{},
+func NewMemoryEventStore() EventStore {
+	return &store{
+		namespaces: map[RootID]Events{},
 	}
 }
 
-func (s *eventStore) Write(e Events) (n int, err error) {
+func (s *store) Write(e Events) (n int, err error) {
 	for i := range e {
 		s.all = append(s.all, e[i])
 		s.namespaces[e[i].root] = append(s.namespaces[e[i].root], e[i])
@@ -40,7 +44,7 @@ func (s *eventStore) Write(e Events) (n int, err error) {
 	return len(e), nil
 }
 
-func (s *eventStore) Read(q Query) Reader {
+func (s *store) Reader(q Query) Reader {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -60,12 +64,12 @@ func (s *eventStore) Read(q Query) Reader {
 
 }
 
-func (s *eventStore) Stream(n Namespace) ReadWriterAt {
+func (s *store) ReadWriter(n RootID) ReadWriterAt {
 	return &streamStore{stream: n, store: s}
 }
 
-func (s *eventStore) Types() []Namespace {
-	var st []Namespace
+func (s *store) Types() []RootID {
+	var st []RootID
 	for i := range s.namespaces {
 		st = append(st, s.namespaces[i][len(s.namespaces[i])-1].root)
 	}
@@ -73,7 +77,7 @@ func (s *eventStore) Types() []Namespace {
 	return st
 }
 
-func (s *eventStore) WriteTo(w Writer) (int64, error) {
+func (s *store) WriteTo(w Writer) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -81,20 +85,20 @@ func (s *eventStore) WriteTo(w Writer) (int64, error) {
 	return int64(nn), err
 }
 
-func (s *eventStore) Clear() {
+func (s *store) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.all, s.namespaces = []Event[any]{}, make(map[Namespace]Events)
+	s.all, s.namespaces = []Event[any]{}, make(map[RootID]Events)
 }
 
-func (s *eventStore) Size() (streams int, events int) {
+func (s *store) Size() (streams int, events int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return len(s.namespaces), len(s.all)
 }
 
-func (s *eventStore) String() (t string) {
+func (s *store) String() (t string) {
 	for i := range s.all {
 		t += fmt.Sprintf("%s", s.all[i])
 	}
@@ -102,8 +106,8 @@ func (s *eventStore) String() (t string) {
 }
 
 type streamStore struct {
-	store  *eventStore
-	stream Namespace
+	store  *store
+	stream RootID
 	mu     sync.Mutex
 }
 

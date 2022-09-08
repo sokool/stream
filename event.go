@@ -8,7 +8,7 @@ import (
 
 type Event[E any] struct {
 	typ      Type
-	root     Namespace
+	root     RootID
 	sequence int64
 
 	// body TODO
@@ -34,9 +34,9 @@ type Event[E any] struct {
 	author string
 }
 
-func NewEvent[E any](n Namespace, e E, sequence int64) (m Event[E], err error) {
+func NewEvent[E any](rid RootID, e E, sequence int64) (m Event[E], err error) {
 	m = Event[E]{
-		root:        n,
+		root:        rid,
 		sequence:    sequence,
 		body:        e,
 		meta:        Meta{},
@@ -65,7 +65,7 @@ func (e Event[E]) Type() Type {
 	return e.typ
 }
 
-func (e Event[E]) Namespace() Namespace {
+func (e Event[E]) Namespace() RootID {
 	return e.root
 }
 
@@ -94,7 +94,7 @@ func (e Event[E]) String() string {
 func (e Event[E]) GoString() string {
 	v := view{
 		"ID":          e.ID(),
-		"Type":        e.root.root + e.typ,
+		"Type":        e.root.typ + e.typ,
 		"Correlation": e.correlation,
 		"Causation":   e.causation,
 		"Namespace":   e.root,
@@ -119,7 +119,7 @@ func (e Event[E]) UnmarshalJSON(b []byte) (err error) {
 	fmt.Println(string(b))
 	var event struct {
 		Type      Type
-		Namespace Namespace
+		Namespace RootID
 		Sequence  int64
 	}
 
@@ -137,10 +137,10 @@ func (e Event[E]) UnmarshalJSON(b []byte) (err error) {
 type Events []Event[any]
 
 func NewEvents(r Root) (ee Events, err error) {
-	var n Namespace
+	var n RootID
 	var e Event[any]
 	var v = r.Version() + 1
-	if n, err = NewNamespace(r); err != nil {
+	if n, err = NewRootID(r); err != nil {
 		return nil, err
 	}
 
