@@ -27,9 +27,6 @@ var (
 	// ErrDuplicatedMessage
 	//ErrDuplicatedMessage = Err("duplicated message in a stream")
 
-	// ErrWrongName
-	//ErrWrongName = Err("wrong message stream name")
-
 	// ErrShortWrite means that a write accepted fewer Message number than requested
 	// but failed to return an explicit error.
 	ErrShortWrite = Err("short write")
