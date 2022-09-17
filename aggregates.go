@@ -2,13 +2,15 @@ package stream
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 )
 
 // Aggregate is todo :)
 type Aggregate[R Root] struct {
+	// Name ...
+	Name Type
+
 	// Description
 	Description string
 
@@ -17,7 +19,7 @@ type Aggregate[R Root] struct {
 	OnCreate func(string) (R, error)
 
 	// Events
-	//Events []E
+	Events []Scheme
 
 	// OnSession called on command dispatch when Session not exists
 	//OnSession func(R) (Session, error)
@@ -32,7 +34,7 @@ type Aggregate[R Root] struct {
 	OnWrite RootFunc[R]
 
 	// OnCommit
-	OnCommit func(R, []Event[any]) error
+	OnCommit func(R, Events) error
 
 	// OnCacheCleanup when aggregate is removed from memory
 	OnCacheCleanup RootFunc[R]
@@ -57,8 +59,8 @@ type Aggregate[R Root] struct {
 	memory *Cache[string, R]
 	mu     sync.Mutex
 
-	// store
-	store EventStore
+	// Store
+	Store EventStore
 }
 
 func (a *Aggregate[R]) Execute(id string, command RootFunc[R]) error {
@@ -84,22 +86,21 @@ func (a *Aggregate[R]) Execute(id string, command RootFunc[R]) error {
 	}
 }
 
-func (a *Aggregate[R]) Read(id string) (r R, err error) {
-	if r, err = a.read(id); err != nil {
+func (a *Aggregate[R]) Read(id string) (R, error) {
+	d, r, err := a.read(id)
+	if err != nil {
 		return r, err
 	}
 
-	var n RootID
-
-	if n, err = NewRootID(r); err != nil {
-		return r, err
+	if a.Store == nil {
+		a.Store = NewEventStore()
 	}
 
-	if a.store == nil {
-		a.store = NewMemoryEventStore()
+	if a.LoadEventsInChunks <= 0 {
+		a.LoadEventsInChunks = 1024
 	}
 
-	rw, evs, m := a.store.ReadWriter(n), make([]Event[any], 8), 0
+	rw, evs, m := a.Store.ReadWriter(d), make([]Event[any], a.LoadEventsInChunks), 0
 	for {
 		switch m, err = rw.ReadAt(evs, r.Version()); {
 
@@ -132,16 +133,17 @@ func (a *Aggregate[R]) Read(id string) (r R, err error) {
 
 func (a *Aggregate[R]) Write(r R) error {
 	events, err := NewEvents(r)
-	if err != nil {
+	if err != nil || len(events) == 0 {
 		return err
 	}
 
-	if len(events) == 0 {
-		return nil
+	rid := events.Unique()
+	if rid.IsZero() { //todo error description
+		return Err("aggregate %s events required to be from one root", rid)
 	}
 
 	var n int
-	switch n, err = a.store.Write(events); {
+	switch n, err = a.Store.ReadWriter(rid).WriteAt(events, r.Version()); {
 	case err != nil:
 		return err
 
@@ -163,21 +165,26 @@ func (a *Aggregate[R]) Write(r R) error {
 	return nil
 }
 
-func (a *Aggregate[R]) read(id string) (R, error) {
+func (a *Aggregate[R]) read(id string) (RootID, R, error) {
 	if a.memory == nil {
 		a.memory = NewCache[string, R](a.CleanCacheAfter)
 	}
 
 	var r, ok = a.memory.Get(id)
+	var d RootID
 	var err error
 
 	if !ok {
 		if r, err = a.OnCreate(id); err != nil {
-			return r, err
+			return d, r, err
 		}
 	}
 
-	return r, nil
+	if d, err = NewRootID(r); err != nil {
+		return d, r, err
+	}
+
+	return d, r, nil
 }
 
 func (a *Aggregate[R]) commit(r R, e []Event[any]) error {
@@ -191,9 +198,10 @@ func (a *Aggregate[R]) commit(r R, e []Event[any]) error {
 		}
 	}
 
-	//var s int64
+	// todo check if given slice of events has correct iteration of sequences, match it with current
+	//      version of R
 	for i := range e {
-		if err := r.Commit(e[i].body, e[i].createdAt); err != nil {
+		if err := r.Commit(e[i].Body, e[i].CreatedAt); err != nil {
 			return err
 		}
 
@@ -205,17 +213,21 @@ func (a *Aggregate[R]) commit(r R, e []Event[any]) error {
 	return a.memory.Set(r.ID(), r)
 }
 
-func (a *Aggregate[R]) String() (s string) {
-	es, ok := a.store.(*store)
-	if !ok {
-		return
+func (a *Aggregate[R]) String() string {
+	if a.Store == nil {
+		return ""
 	}
-	for i := range es.all {
-		s += fmt.Sprintf("%s\n", es.all[i].String())
+
+	e := make(Events, 10)
+	if _, err := a.Store.Reader(Query{Root: a.Name}).Read(e); err != nil {
+		return err.Error()
 	}
-	return
+
+	return e.String()
 }
 
 type Context = context.Context
+
+type Date = time.Time
 
 type expired interface{ CacheTimeout() time.Duration }

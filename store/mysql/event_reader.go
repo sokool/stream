@@ -1,47 +1,41 @@
 package mysql
 
 import (
-	"context"
+	"github.com/doug-martin/goqu"
 	. "github.com/sokool/stream"
+	"strings"
 )
 
 type EventsReader struct {
-	db *Connection
-
-	ctx  context.Context
-	from int64
-	*select_
+	conn  *Connection
+	query EventsQuery
 }
 
 func NewEventsReader(c *Connection, q Query) *EventsReader {
-	return &EventsReader{
-		db:      c,
-		ctx:     context.Background(),
-		select_: c.events(q),
-	}
+	return &EventsReader{c, EventsQuery{q, 100}}
 }
 
 func (r *EventsReader) ReadAt(e Events, pos int64) (n int, err error) {
+	r.query.FromSequence = pos
 	return r.Read(e)
 }
 
 func (r *EventsReader) Read(e Events) (n int, err error) {
-	var size = len(e)
-
-	res, err := r.limit(size).run(r.ctx, r.db)
+	res, err := r.conn.db.Query(r.query.Limit(len(e)).String())
 	if err != nil {
 		return 0, err
 	}
 
 	defer res.Close()
 
-	for n = range e {
+	for i := range e {
 		if !res.Next() {
-			if n == 0 || n < size {
-				return n, ErrEndOfStream
+			if i == 0 || i < r.query.limit {
+				err = ErrEndOfStream
+				return
 			}
 
-			return n, nil
+			return
 		}
 
 		var b []byte
@@ -49,10 +43,56 @@ func (r *EventsReader) Read(e Events) (n int, err error) {
 			return
 		}
 
-		if err = e[n].UnmarshalJSON(b); err != nil {
+		if err = r.conn.schemas.Decode(&e[n], b); err != nil {
 			return
 		}
+		n++
 	}
 
 	return
 }
+
+type EventsQuery struct {
+	Query
+	limit int
+}
+
+func (e EventsQuery) String() string {
+	o := func(name string) goqu.OrderedExpression {
+		if e.NewestFirst {
+			return goqu.I(name).Desc()
+		}
+
+		return goqu.I(name).Asc()
+	}
+
+	q := goqu.From("aggregates").Select("body").Order(o("created_at"))
+	if d := e.ID; d != "" {
+		q = q.Where(goqu.Ex{"id": d}).Order(o("sequence"))
+	}
+
+	if t := e.Root; t != "" {
+		q = q.Where(goqu.Ex{"root": t})
+	}
+
+	if s := e.Events; len(s) != 0 {
+		q = q.Where(goqu.Ex{"event": s})
+	}
+
+	if n := int(e.FromSequence); n > 0 {
+		q = q.Where(goqu.Ex{"sequence": goqu.Op{"gt": n}}).Where(goqu.Ex{"sequence": goqu.Op{"lte": n + e.limit}})
+	}
+
+	if s := e.Text; s != "" {
+		q = q.Where(goqu.Ex{"body": goqu.Op{"like": "%" + s + "%"}})
+	}
+
+	if e.limit > 0 {
+		q = q.Limit(uint(e.limit))
+	}
+
+	s, _, _ := q.ToSql()
+	return strings.ReplaceAll(s, `"`, "")
+}
+
+func (e EventsQuery) Limit(n int) EventsQuery { e.limit = n; return e }

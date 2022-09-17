@@ -14,14 +14,35 @@ func TestName(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	//id, _ := stream.ParseRootID("analytics.Application")
-	var q stream.Query
+	//id, _ := stream.ParseRootID("73HdaUj.Thread")
+	q := stream.Query{
+		//ID: id.ID(),
+		//Root: id.Type(),
+		//Events: []stream.Type{"ThreadStarted", "ThreadJoined", "ThreadMessage"},
+		//FromSequence: 3,
+		//Text:         "hi there",
+		NewestFirst: true,
+	}
 
-	//q.Root.ID, q.Root.Type, q.Root.Events = id.ID(), id.Type(), []stream.Type{"Registered", "Published"}
-
-	q.Root.Events = []stream.Type{"Collected"}
-	fmt.Println(s.Reader(q).Read(make(stream.Events, 10)))
+	e := make(stream.Events, 6)
+	//x, _ := stream.ParseRootID("51068.Application")
+	fmt.Println(s.Reader(q).Read(e))
+	//e = append(e, stream.Event[any]{
+	//	ID:          "a",
+	//	Type:        "Doa",
+	//	Root:        x,
+	//	Sequence:    1,
+	//	Body:        nil,
+	//	Meta:        stream.Meta{},
+	//	Correlation: "",
+	//	Causation:   "",
+	//	CreatedAt:   time.Now(),
+	//	Author:      "",
+	//})
+	fmt.Println(e.Unique().IsZero())
+	fmt.Println(e.String())
+	//s.ReadWriter(id).ReadAt(make(stream.Events, 5), 2)
+	//fmt.Println(s.Reader(q).Read(make(stream.Events, 10)))
 	//mysql.NewEventsReader(s.Connection, q).Read(make(stream.Events, 5))
 
-	//fmt.Printf("%#v\n", e)
 }

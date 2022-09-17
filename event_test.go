@@ -1,6 +1,7 @@
 package stream_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/sokool/stream"
 	"github.com/sokool/stream/example/chat/model"
@@ -23,4 +24,29 @@ func Test(t *testing.T) {
 	//fmt.Println(e.Namespace())
 	fmt.Println(e.GoString())
 
+}
+
+func TestNewEvent(t *testing.T) {
+	id, err := stream.ParseRootID("ja5285.Payment")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type Collected struct{ Amount int }
+
+	e, err := stream.NewEvent(id, Collected{837}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Println(e.GoString())
+
+	s := stream.NewScheme(Collected{})
+	b, _ := json.MarshalIndent(s, "", "\t")
+	fmt.Printf("%T\n%s\n", s, b)
+
+	r := stream.Schemas{}
+	r.Apply(stream.NewScheme(Collected{}))
+
+	//stream.NewMemoryEventStore()
 }

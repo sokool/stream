@@ -10,18 +10,19 @@ import (
 type EventStore interface {
 	ReadWriter(RootID) ReadWriterAt
 	Reader(Query) Reader
-	Write(Events) (n int, err error)
 }
 
+// Query read stream events
 type Query struct {
-	Root struct {
-		ID     ID
-		Type   Type
-		Events []Type
-	}
-	From, To   time.Time
-	Descending bool
-	Shutdown   context.Context
+	ID           ID
+	Root         Type
+	Events       []Type
+	FromSequence int64
+	From, To     time.Time
+	Text         string
+	NewestFirst  bool
+	Limit        int
+	Shutdown     context.Context
 }
 
 type store struct {
@@ -30,7 +31,7 @@ type store struct {
 	all        Events
 }
 
-func NewMemoryEventStore() EventStore {
+func NewEventStore() *store {
 	return &store{
 		namespaces: map[RootID]Events{},
 	}
@@ -39,7 +40,7 @@ func NewMemoryEventStore() EventStore {
 func (s *store) Write(e Events) (n int, err error) {
 	for i := range e {
 		s.all = append(s.all, e[i])
-		s.namespaces[e[i].root] = append(s.namespaces[e[i].root], e[i])
+		s.namespaces[e[i].Root] = append(s.namespaces[e[i].Root], e[i])
 	}
 	return len(e), nil
 }
@@ -71,7 +72,7 @@ func (s *store) ReadWriter(n RootID) ReadWriterAt {
 func (s *store) Types() []RootID {
 	var st []RootID
 	for i := range s.namespaces {
-		st = append(st, s.namespaces[i][len(s.namespaces[i])-1].root)
+		st = append(st, s.namespaces[i][len(s.namespaces[i])-1].Root)
 	}
 
 	return st
@@ -167,12 +168,12 @@ func (s *streamStore) WriteAt(e Events, pos int64) (int, error) {
 
 	for i, e := range e {
 		if pos >= 0 {
-			if int64(len(s.store.namespaces[e.root])) != pos {
+			if int64(len(s.store.namespaces[e.Root])) != pos {
 				return i, ErrConcurrentWrite
 			}
 		}
 
-		s.store.namespaces[e.root] = append(s.store.namespaces[e.root], e)
+		s.store.namespaces[e.Root] = append(s.store.namespaces[e.Root], e)
 		s.store.all = append(s.store.all, e)
 	}
 

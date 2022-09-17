@@ -6,16 +6,17 @@ import (
 	"time"
 )
 
-type Event[E any] struct {
-	typ      Type
-	root     RootID
-	sequence int64
+type Event[T any] struct {
+	ID       ID
+	Type     Type
+	Root     RootID
+	Sequence int64
 
 	// body TODO
-	body E
+	Body T
 
 	// meta TODO
-	meta Meta
+	Meta Meta
 
 	// Every Message has 3 ID's [ID, CorrelationID, CausationID]. When you are
 	// responding to a Message (either a Command or and Event) you copy the
@@ -25,133 +26,114 @@ type Event[E any] struct {
 	//
 	// Greg Young
 	// --> https://groups.google.com/d/msg/dddcqrs/qGYC6qZEqOI/LhQup9v7EwAJ
-	correlation, causation ID
+	Correlation, Causation ID
 
 	// CreatedAt
-	createdAt time.Time
+	CreatedAt time.Time
 
-	// author helps to check what person/device generate this Message.
-	author string
+	// Author helps to check what person/device generate this Message.
+	Author string
 }
 
-func NewEvent[E any](rid RootID, e E, sequence int64) (m Event[E], err error) {
-	m = Event[E]{
-		root:        rid,
-		sequence:    sequence,
-		body:        e,
-		meta:        Meta{},
-		correlation: "",
-		causation:   "",
-		createdAt:   time.Now(),
-		author:      "",
-	}
-
-	if m.typ, err = NewType(e); err != nil {
-		return m, nil
+func NewEvent[T any](id RootID, v T, sequence int64) (e Event[T], err error) {
+	var t Type
+	if t, err = NewType(v); err != nil {
+		return e, nil
 	}
 
 	if sequence <= 0 {
-		return m, Err("invalid event sequence")
+		return e, Err("invalid event sequence")
 	}
 
-	return m, nil
+	return Event[T]{
+		ID:          uid(fmt.Sprintf("%s.%s.%d", id, e.Type, sequence)),
+		Root:        id,
+		Type:        t.CutPrefix(id.Type()),
+		Sequence:    sequence,
+		Body:        v,
+		Meta:        Meta{},
+		Correlation: "",
+		Causation:   "",
+		CreatedAt:   time.Now(),
+		Author:      "",
+	}, nil
 }
 
-func (e Event[E]) ID() ID {
-	return uid(e)
-}
-
-func (e Event[E]) Type() Type {
-	return e.typ
-}
-
-func (e Event[E]) Namespace() RootID {
-	return e.root
-}
-
-func (e Event[E]) Sequence() int64 {
-	return e.sequence
-}
-
-func (e Event[E]) Body() E {
-	return e.body
-}
-
-func (e Event[E]) Correlate(d ID) Event[E] {
-	e.correlation = d
+func (e *Event[T]) Correlate(d ID) *Event[T] {
+	e.Correlation = d
 	return e
 }
 
-func (e Event[E]) Respond(src Event[any]) Event[E] {
-	e.correlation, e.causation = src.correlation, src.ID()
+func (e *Event[T]) Respond(to Event[any]) *Event[T] {
+	e.Correlation, e.Causation = to.Correlation, to.ID
 	return e
 }
 
-func (e Event[E]) String() string {
-	return fmt.Sprintf("%s.%s#%d", e.root, e.typ, e.sequence)
+func (e *Event[E]) String() string {
+	return fmt.Sprintf("%s%s#%d", e.Root, e.Type, e.Sequence)
 }
 
-func (e Event[E]) GoString() string {
-	v := view{
-		"ID":          e.ID(),
-		"Type":        e.root.typ + e.typ,
-		"Correlation": e.correlation,
-		"Causation":   e.causation,
-		"Namespace":   e.root,
-		"CreatedAt":   e.createdAt,
-		"Body":        e.body,
-		"Meta":        e.meta,
-	}
-	b, err := json.MarshalIndent(v, "", "\t")
+func (e *Event[T]) GoString() string {
+	b, err := json.MarshalIndent(e, "", "\t")
 	if err != nil {
 		return err.Error()
 	}
 
-	return fmt.Sprintf("%T\n%s\n", e, b)
+	return fmt.Sprintf("%T\n%s\n", e.Body, b)
 }
 
-func (e Event[E]) MarshalJSON() ([]byte, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (e Event[E]) UnmarshalJSON(b []byte) (err error) {
-	fmt.Println(string(b))
-	var event struct {
-		Type      Type
-		Namespace RootID
-		Sequence  int64
-	}
-
-	if err = json.Unmarshal(b, &event); err != nil {
-		return err
-	}
-
-	e.typ = event.Type
-	e.sequence = event.Sequence
-	e.root = event.Namespace
-
-	return nil
+func (e *Event[T]) IsZero() bool {
+	return e.ID == ""
 }
 
 type Events []Event[any]
 
 func NewEvents(r Root) (ee Events, err error) {
-	var n RootID
+	var id RootID
 	var e Event[any]
-	var v = r.Version() + 1
-	if n, err = NewRootID(r); err != nil {
+	var k = r.Version() + 1
+	if id, err = NewRootID(r); err != nil {
 		return nil, err
 	}
 
-	for i, m := range r.Uncommitted(true) {
-		if e, err = NewEvent(n, m, v+int64(i)); err != nil {
+	for i, v := range r.Uncommitted(true) {
+		if e, err = NewEvent(id, v, k+int64(i)); err != nil {
 			return nil, err
 		}
 		ee = append(ee, e)
 	}
 
 	return ee, nil
+}
+
+// Unique gives RootID when all events has same RootID
+func (e Events) Unique() RootID {
+	if len(e) == 0 || !e.hasUnique(e[0].Root) {
+		return RootID{}
+	}
+
+	return e[0].Root
+}
+
+func (e Events) hasUnique(id RootID) bool {
+	for i := range e {
+		if id != e[i].Root && !e[i].IsZero() {
+			return false
+		}
+	}
+	return true
+}
+
+func (e Events) String() string {
+	var s string
+	for i := range e {
+		if e[i].IsZero() {
+			continue
+		}
+		s += fmt.Sprintf("%s\n", &e[i])
+	}
+
+	return s
 }
 
 //func DecodeEvent[E any]()

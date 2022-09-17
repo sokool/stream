@@ -61,7 +61,10 @@ func (id RootID) Type() Type {
 }
 
 func (id RootID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(id.String())
+	return json.Marshal(view{
+		"ID":   id.id.String(),
+		"Type": id.typ.String(),
+	})
 }
 
 func (id *RootID) UnmarshalJSON(b []byte) error {
@@ -69,17 +72,25 @@ func (id *RootID) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 
-	v, err := ParseRootID(string(b))
+	var v view
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+
+	r, err := ParseRootID(fmt.Sprintf("%s.%s", v["ID"], v["Type"]))
 	if err != nil {
 		return err
 	}
 
-	*id = v
+	*id = r
 	return nil
 }
 
 func (id RootID) String() string {
-	return fmt.Sprintf("%s.%s", id.id, id.typ)
+	if id.IsZero() {
+		return ""
+	}
+	return fmt.Sprintf("%s.%s", string(id.id), id.typ)
 }
 
 func (id RootID) IsZero() bool {

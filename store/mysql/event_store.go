@@ -9,26 +9,24 @@ type EventsStore struct {
 	*Connection
 }
 
-func NewEventsStore(host string, l ...Log) (*EventsStore, error) {
-	var s EventsStore
+func NewEventsStore(host string, s *Schemas, l ...Log) (*EventsStore, error) {
+	var e EventsStore
 	var err error
 
-	if s.Connection, err = NewConnection(host, l...); err != nil {
+	if e.Connection, err = NewConnection(host, s, l...); err != nil {
 		return nil, err
 	}
+	e.schemas = s
 
-	return &s, nil
+	return &e, nil
 }
 
 func (r *EventsStore) ReadWriter(n RootID) ReadWriterAt {
-	var q Query
-	q.Root.ID, q.Root.Type = n.ID(), n.Type()
-
 	return struct {
 		*EventsReader
 		*EventsWriter
 	}{
-		NewEventsReader(r.Connection, q),
+		NewEventsReader(r.Connection, Query{ID: n.ID(), Root: n.Type()}),
 		NewEventsWriter(r.Connection),
 	}
 }
@@ -38,30 +36,5 @@ func (r *EventsStore) Reader(q Query) Reader {
 }
 
 func (r *EventsStore) Write(e Events) (n int, err error) {
-	panic("implement me")
+	return NewEventsWriter(r.Connection).Write(e)
 }
-
-//type stream struct {
-//	*events
-//	namespace   Namespace
-//	termination Context
-//}
-//
-//func (s *stream) ReadAt(events []Event[any], pos int64) (n int, err error) {
-//	return s.read(s.termination, events, `
-//SELECT *
-//   FROM aggregates_events
-//   WHERE
-//       type = :type           AND
-//       stream = :stream       AND
-//       sequence > :from AND sequence <= :min
-//
-//   ORDER BY created_at ASC`, parameters{
-//		"stream": s.namespace.ID(),
-//		"type":   s.namespace.Type(),
-//		"from":   pos,
-//		"min":    pos + int64(len(events)),
-//	})
-//
-//}
-//
