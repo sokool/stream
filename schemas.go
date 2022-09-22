@@ -17,16 +17,79 @@ func (r *Schemas) Encode(e Event[any]) ([]byte, error) {
 	return json.Marshal(e)
 }
 
-func (r *Schemas) Apply(e Scheme) error {
-
+func (r *Schemas) Append(e Scheme) error {
 	x := append(*r, e)
 	r = &x
 	return nil
 }
 
-func (r *Schemas) Merge(s *Schemas) error {
+func (r *Schemas) Merge(s Schemas) error {
+	*r = append(*r, s...)
 	return nil
 }
+
+func (r *Schemas) Filtrate(e *Event[any]) (bool, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r *Schemas) IsCoupled(with Type, of Events) bool {
+	//r.mu.Lock()
+	//defer r.mu.Unlock()
+
+	return false
+	//for i := range of {
+	//	if e := r.get(of[i]); e != nil && e.isCoupled(with) {
+	//		return true
+	//	}
+	//}
+	//
+	//return false
+}
+
+//func (r *Schemas) Names() []string {
+//	r.mu.Lock()
+//	defer r.mu.Unlock()
+//
+//	var names []string
+//	for n := range r.types {
+//		names = append(names, n)
+//	}
+//
+//	for n := range r.aliases {
+//		names = append(names, n)
+//	}
+//
+//	return names
+//}
+
+//func (r *Schemas) has(e EVENT) (Event, bool) {
+//	n := infoOf(e)
+//	for _, m := range r.types {
+//		if m.info.path == n.path {
+//			return *m, true
+//		}
+//	}
+//
+//	return Event{}, false
+//}
+
+//func (r *Schemas) Get(m Event[any]) *Event {
+//	//r.mu.Lock()
+//	//defer r.mu.Unlock()
+//
+//	return r.get(m)
+//}
+
+//func (r *Schemas) get(m Event[any]) *Event {
+//	n := m.Name()
+//	s, ok := r.types[n]
+//	if !ok {
+//		s = r.aliases[n]
+//	}
+//
+//	return s
+//}
 
 type Scheme struct {
 	root        RootType

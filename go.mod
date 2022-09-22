@@ -14,4 +14,10 @@ require (
 	github.com/doug-martin/goqu v5.0.0+incompatible // indirect
 	github.com/doug-martin/goqu/v9 v9.18.0 // indirect
 	github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/mattn/go-sqlite3 v1.14.15 // indirect
+	gorm.io/driver/mysql v1.3.6 // indirect
+	gorm.io/driver/sqlite v1.3.6 // indirect
+	gorm.io/gorm v1.23.9 // indirect
 )

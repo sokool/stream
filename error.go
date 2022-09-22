@@ -14,6 +14,7 @@ var (
 	// to underlying Reader
 	ErrEndOfStream = Err("end of stream")
 
+	ErrDocumentNotFound = Err("document not found")
 	// ErrWrongSequence error might be returned by Reader or Writer.
 	// They can detect if Messages are in logical order, when
 	// not then ErrWrongSequence should be returned.

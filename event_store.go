@@ -12,6 +12,8 @@ type EventStore interface {
 	Reader(Query) Reader
 }
 
+type EventStoreFactory func(Schemas, ...Logger) EventStore
+
 // Query read stream events
 type Query struct {
 	ID           ID
@@ -101,7 +103,7 @@ func (s *store) Size() (streams int, events int) {
 
 func (s *store) String() (t string) {
 	for i := range s.all {
-		t += fmt.Sprintf("%s", s.all[i])
+		t += fmt.Sprintf("%s", &s.all[i])
 	}
 	return
 }

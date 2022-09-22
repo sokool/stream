@@ -27,18 +27,6 @@ func (w *EventsWriter) WriteAt(events Events, pos int64) (n int, err error) {
 	}
 
 	var tx *sqlx.Tx
-	//var sequence struct {
-	//	auto bool
-	//	next int64
-	//}
-
-	// auto sequence when pos is -1, it means that each sequence of events is
-	// overwritten.
-	//if sequence.auto = pos == -1; sequence.auto {
-	//	if pos, err = s.last(events[0].Root().ID().String()); err != nil {
-	//		return 0, fmt.Errorf("reading last sequence in a stream failed due %s", err)
-	//	}
-	//}
 
 	if tx, err = w.db.BeginTxx(context.TODO(), nil); err != nil {
 		return 0, err
@@ -50,25 +38,15 @@ func (w *EventsWriter) WriteAt(events Events, pos int64) (n int, err error) {
 		}
 
 		if failed := tx.Rollback(); failed != nil {
-			//s.log("%s WriteAt rollback failed on %s due %s", s.namespace, err, failed)
+			w.log("%s WriteAt rollback failed on %s due %s", w.root, err, failed)
 		}
 	}()
 
 	for _, e := range events {
-		//sequence.next = pos + int64(i) + 1
 		var b []byte
 		if !w.root.IsZero() && e.Root != w.root {
-			return 0, fmt.Errorf("rootid missmatch")
+			return 0, fmt.Errorf("rootid missmatch, required %s", w.root)
 		}
-
-		//fmt.Println("add", e.GoString())
-		//if sequence.auto {
-		//	e.Sequence = sequence.next
-		//}
-		//
-		//if sequence.next != e.Sequence() {
-		//	return 0, fmt.Errorf("wrong sequence of event")
-		//}
 
 		if b, err = w.schemas.Encode(e); err != nil {
 			return 0, err

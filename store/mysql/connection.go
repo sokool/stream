@@ -1,9 +1,11 @@
 package mysql
 
 import (
-	"database/sql"
 	"github.com/jmoiron/sqlx"
 	"github.com/sokool/stream"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"log"
 	"strings"
 	"time"
@@ -15,10 +17,16 @@ type Connection struct {
 	db      *sqlx.DB
 	schemas *stream.Schemas
 	log     Log
+	gdb     *gorm.DB
 }
 
 func NewConnection(host string, s *stream.Schemas, l ...Log) (*Connection, error) {
 	var c Connection
+	var err error
+
+	if c.gdb, err = gorm.Open(mysql.Open(host)); err != nil {
+		return nil, err
+	}
 
 	if len(l) == 0 {
 		l = append(l, log.Printf)
@@ -26,7 +34,12 @@ func NewConnection(host string, s *stream.Schemas, l ...Log) (*Connection, error
 
 	c.log, c.schemas = l[0], s
 
-	db, err := sql.Open("mysql", host)
+	c.gdb = c.gdb.Session(&gorm.Session{
+		NewDB:  true,
+		Logger: logger.New(xx{}, logger.Config{}),
+	})
+
+	db, err := c.gdb.DB()
 	if err != nil {
 		panic(err)
 	}
@@ -92,3 +105,11 @@ CREATE TABLE IF NOT EXISTS aggregates (
 	eventsIndexE = `CREATE INDEX name_created_at ON aggregates_events (name, created_at);`
 	eventsIndexF = `CREATE INDEX name ON aggregates_events (name);`
 )
+
+type xx struct {
+}
+
+func (x xx) Printf(s string, i ...interface{}) {
+	//TODO implement me
+	panic("implement me")
+}

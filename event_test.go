@@ -1,7 +1,6 @@
 package stream_test
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/sokool/stream"
 	"github.com/sokool/stream/example/chat/model"
@@ -39,14 +38,7 @@ func TestNewEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmt.Println(e.GoString())
-
-	s := stream.NewScheme(Collected{})
-	b, _ := json.MarshalIndent(s, "", "\t")
-	fmt.Printf("%T\n%s\n", s, b)
-
-	r := stream.Schemas{}
-	r.Apply(stream.NewScheme(Collected{}))
-
-	//stream.NewMemoryEventStore()
+	if e.Root != id {
+		t.Fatal("ble")
+	}
 }

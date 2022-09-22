@@ -6,8 +6,8 @@ import (
 )
 
 func ExampleAggregate_Execute() {
-	id, threads := "k8Duq81o", repository.NewThreads()
-	chat, err := threads.Read(id)
+	id, threads := "k8Duq81o", repository.NewChats()
+	chat, err := threads.Threads.Get(id)
 	if err != nil {
 		return
 	}
@@ -18,10 +18,13 @@ func ExampleAggregate_Execute() {
 	}
 	fmt.Println(chat)
 
-	if err = threads.Write(chat); err != nil {
+	if err = threads.Threads.Set(chat); err != nil {
 		return
 	}
+
 	fmt.Println(chat)
+
+	//x, _ := threads.Members.Store.Load(nil)
 
 	// Output:
 	// k8Duq81o.Thread#0

@@ -42,7 +42,7 @@ func TestName(t *testing.T) {
 	fmt.Println(e.Unique().IsZero())
 	fmt.Println(e.String())
 	//s.ReadWriter(id).ReadAt(make(stream.Events, 5), 2)
-	//fmt.Println(s.Reader(q).Read(make(stream.Events, 10)))
-	//mysql.NewEventsReader(s.Connection, q).Read(make(stream.Events, 5))
+	//fmt.Println(s.Reader(q).Get(make(stream.Events, 10)))
+	//mysql.NewEventsReader(s.Connection, q).Get(make(stream.Events, 5))
 
 }

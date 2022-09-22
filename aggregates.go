@@ -8,8 +8,8 @@ import (
 
 // Aggregate is todo :)
 type Aggregate[R Root] struct {
-	// Name ...
-	Name Type
+	// Type ...
+	Type Type
 
 	// Description
 	Description string
@@ -19,7 +19,7 @@ type Aggregate[R Root] struct {
 	OnCreate func(string) (R, error)
 
 	// Events
-	Events []Scheme
+	Events Schemas
 
 	// OnSession called on command dispatch when Session not exists
 	//OnSession func(R) (Session, error)
@@ -34,7 +34,7 @@ type Aggregate[R Root] struct {
 	OnWrite RootFunc[R]
 
 	// OnCommit
-	OnCommit func(R, Events) error
+	OnCommit func(R, Events) error // todo not able to deny it (error)
 
 	// OnCacheCleanup when aggregate is removed from memory
 	OnCacheCleanup RootFunc[R]
@@ -49,23 +49,25 @@ type Aggregate[R Root] struct {
 
 	LoadEventsInChunks int
 
+	// Store
+	Store EventStore
+
+	// Writer
+	Writer Writer
+
 	// Logger
 	//Log Printer
 
-	//schema *Schemas
-
 	// memory keeps created Changelog of Aggregate in order to avoid rebuilding
-	// state of each Aggregate everytime when Command is called
+	// state of each Aggregate everytime when Thread is called
 	memory *Cache[string, R]
 	mu     sync.Mutex
-
-	// Store
-	Store EventStore
 }
 
+// todo recover panic
 func (a *Aggregate[R]) Execute(id string, command RootFunc[R]) error {
 	for {
-		r, err := a.Read(id)
+		r, err := a.Get(id)
 		if err != nil {
 			return err
 		}
@@ -74,7 +76,7 @@ func (a *Aggregate[R]) Execute(id string, command RootFunc[R]) error {
 			return err
 		}
 
-		switch err = a.Write(r); {
+		switch err = a.Set(r); {
 		case err == ErrConcurrentWrite:
 			continue
 
@@ -86,7 +88,7 @@ func (a *Aggregate[R]) Execute(id string, command RootFunc[R]) error {
 	}
 }
 
-func (a *Aggregate[R]) Read(id string) (R, error) {
+func (a *Aggregate[R]) Get(id string) (R, error) {
 	d, r, err := a.read(id)
 	if err != nil {
 		return r, err
@@ -131,7 +133,7 @@ func (a *Aggregate[R]) Read(id string) (R, error) {
 	}
 }
 
-func (a *Aggregate[R]) Write(r R) error {
+func (a *Aggregate[R]) Set(r R) error {
 	events, err := NewEvents(r)
 	if err != nil || len(events) == 0 {
 		return err
@@ -158,6 +160,12 @@ func (a *Aggregate[R]) Write(r R) error {
 
 	if a.OnWrite != nil {
 		if err = a.OnWrite(r); err != nil {
+			return err
+		}
+	}
+
+	if a.Writer != nil {
+		if _, err = a.Writer.Write(events); err != nil {
 			return err
 		}
 	}
@@ -219,11 +227,34 @@ func (a *Aggregate[R]) String() string {
 	}
 
 	e := make(Events, 10)
-	if _, err := a.Store.Reader(Query{Root: a.Name}).Read(e); err != nil {
+	if _, err := a.Store.Reader(Query{Root: a.Type}).Read(e); err != nil {
 		return err.Error()
 	}
 
 	return e.String()
+}
+
+func (a *Aggregate[R]) Register(in *Domain) (err error) {
+	if a.Type.IsZero() {
+		var r R
+		if a.Type, err = NewType(r); err != nil {
+			return
+		}
+	}
+
+	if a.Store == nil {
+		a.Store = in.store
+	}
+
+	if err = in.schemas.Merge(a.Events); err != nil {
+		return err
+	}
+
+	if a.Writer != nil {
+		in.writers.list = append(in.writers.list, a.Writer)
+	}
+	a.Writer = in.writers
+	return nil
 }
 
 type Context = context.Context

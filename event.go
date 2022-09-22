@@ -19,7 +19,7 @@ type Event[T any] struct {
 	Meta Meta
 
 	// Every Message has 3 ID's [ID, CorrelationID, CausationID]. When you are
-	// responding to a Message (either a Command or and Event) you copy the
+	// responding to a Message (either a Thread or and Event) you copy the
 	// CorrelationID of the Message you are responding to, to your new
 	// CorrelationID. The CausationID of your Message is the ID of the
 	// Message you are responding to.
@@ -33,6 +33,8 @@ type Event[T any] struct {
 
 	// Author helps to check what person/device generate this Message.
 	Author string
+
+	Coupled []Type
 }
 
 func NewEvent[T any](id RootID, v T, sequence int64) (e Event[T], err error) {
@@ -70,7 +72,7 @@ func (e *Event[T]) Respond(to Event[any]) *Event[T] {
 }
 
 func (e *Event[E]) String() string {
-	return fmt.Sprintf("%s%s#%d", e.Root, e.Type, e.Sequence)
+	return fmt.Sprintf("%s:%d:%s[%s]", e.Root.id, e.Sequence, e.Root.typ, e.Type)
 }
 
 func (e *Event[T]) GoString() string {
@@ -100,6 +102,7 @@ func NewEvents(r Root) (ee Events, err error) {
 		if e, err = NewEvent(id, v, k+int64(i)); err != nil {
 			return nil, err
 		}
+
 		ee = append(ee, e)
 	}
 
@@ -107,33 +110,95 @@ func NewEvents(r Root) (ee Events, err error) {
 }
 
 // Unique gives RootID when all events has same RootID
-func (e Events) Unique() RootID {
-	if len(e) == 0 || !e.hasUnique(e[0].Root) {
+func (r Events) Unique() RootID {
+	if len(r) == 0 || !r.hasUnique(r[0].Root) {
 		return RootID{}
 	}
 
-	return e[0].Root
+	return r[0].Root
 }
 
-func (e Events) hasUnique(id RootID) bool {
-	for i := range e {
-		if id != e[i].Root && !e[i].IsZero() {
+func (r Events) Shrink(f Filter) (Events, error) {
+	if f == nil {
+		return r, nil
+	}
+
+	var o Events
+	for i := range r {
+		ok, err := f.Filtrate(&r[i])
+		if err != nil {
+			return nil, err
+		}
+
+		if ok {
+			o = append(o, r[i])
+		}
+	}
+	return o, nil
+}
+
+func (r Events) hasUnique(id RootID) bool {
+	for i := range r {
+		if id != r[i].Root && !r[i].IsZero() {
 			return false
 		}
 	}
 	return true
 }
 
-func (e Events) String() string {
+func (r Events) Append(e Event[any]) error {
+	return nil
+}
+
+func (r Events) String() string {
 	var s string
-	for i := range e {
-		if e[i].IsZero() {
+	if id := r.Unique(); !id.IsZero() {
+		s = id.String()
+		var t []string
+		var d int64
+		for i := range r {
+			if r[i].IsZero() {
+				continue
+			}
+			t, d = append(t, r[i].Type.String()), r[i].Sequence
+		}
+
+		return fmt.Sprintf("%s:%d:%s%v", id.id, d, id.typ, t)
+	}
+
+	for i := range r {
+		if r[i].IsZero() {
 			continue
 		}
-		s += fmt.Sprintf("%s\n", &e[i])
+		s += fmt.Sprintf("%s\n", &r[i])
 	}
 
 	return s
+}
+
+func (r Events) Extend(s Root) (err error) {
+	var id RootID
+	var e Event[any]
+	var k = s.Version() + 1
+	if id, err = NewRootID(s); err != nil {
+		return err
+	}
+
+	for i, v := range s.Uncommitted(true) {
+		if e, err = NewEvent(id, v, k+int64(i)); err != nil {
+			return err
+		}
+
+		if err = r.Append(e); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r Events) Size() int {
+	return len(r)
 }
 
 //func DecodeEvent[E any]()

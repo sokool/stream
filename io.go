@@ -38,7 +38,7 @@ type WriteCloser interface {
 	Closer
 }
 
-// WriterAt store event in Entity starting from pos... todo
+// WriterAt store event in Document starting from pos... todo
 type WriterAt interface {
 	WriteAt(m Events, pos int64) (n int, err error)
 }

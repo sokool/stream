@@ -53,6 +53,10 @@ func (t Type) CutPrefix(of Type) Type {
 	return Type(strings.Replace(a, b, "", 1))
 }
 
+func (t Type) LowerCase() Type {
+	return Type(strings.ToLower(string(t)))
+}
+
 type info struct {
 	id, path, uuid, hash, name string
 	pkg, typ                   string

@@ -21,7 +21,7 @@ func (r *EventsReader) ReadAt(e Events, pos int64) (n int, err error) {
 }
 
 func (r *EventsReader) Read(e Events) (n int, err error) {
-	res, err := r.conn.db.Query(r.query.Limit(len(e)).String())
+	res, err := r.conn.db.Query(r.query.Limit(e.Size()).String())
 	if err != nil {
 		return 0, err
 	}

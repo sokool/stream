@@ -9,10 +9,22 @@ import (
 )
 
 type Root interface {
-	ID() string
-	Version() int64
+	Entity
+	Committer
+	Uncommitter
+}
+
+type Committer interface {
+	Commit(event any, createdAt time.Time) error //  todo not able to deny it (remove error)
+}
+
+type Uncommitter interface {
 	Uncommitted(clear bool) (events []any)
-	Commit(event any, createdAt time.Time) error
+}
+
+type Serializer interface {
+	json.Marshaler
+	json.Unmarshaler
 }
 
 type RootFunc[R Root] func(R) error
@@ -22,7 +34,7 @@ type RootID struct {
 	typ Type
 }
 
-func NewRootID(r Root) (id RootID, err error) {
+func NewRootID(r Entity) (id RootID, err error) {
 	if id.id, err = NewID(r.ID()); err != nil {
 		return id, Err("invalid namespace id %w", err)
 	}
@@ -60,6 +72,10 @@ func (id RootID) Type() Type {
 	return id.typ
 }
 
+func (id RootID) Hash() string {
+	return uid(id.String()).String()
+}
+
 func (id RootID) MarshalJSON() ([]byte, error) {
 	return json.Marshal(view{
 		"ID":   id.id.String(),
@@ -90,7 +106,7 @@ func (id RootID) String() string {
 	if id.IsZero() {
 		return ""
 	}
-	return fmt.Sprintf("%s.%s", string(id.id), id.typ)
+	return fmt.Sprintf("%s:%s", string(id.id), id.typ)
 }
 
 func (id RootID) IsZero() bool {
