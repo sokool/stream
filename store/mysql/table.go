@@ -6,23 +6,26 @@ import (
 )
 
 type Table[E Entity] struct {
-	entity E
 	name   string
 	create EntityFunc[E]
 	c      *Connection
 }
 
 func NewTable[E Entity](c *Connection, fn EntityFunc[E]) (*Table[E], error) {
-	d := &Table[E]{create: fn, c: c}
+	var e E
 
-	t, err := NewType(d.entity)
+	t, err := NewType(e)
 	if err != nil {
 		return nil, err
 	}
 
-	d.name = t.LowerCase().String()
+	d := &Table[E]{
+		c:      c,
+		create: fn,
+		name:   t.LowerCase().String(),
+	}
 
-	return d, d.prepare(false)
+	return d, d.prepare(e, false)
 }
 
 func (r *Table[E]) Create(e Events) (E, error) {
@@ -77,17 +80,17 @@ func (r *Table[E]) Delete(ee ...E) error {
 	panic("implement")
 }
 
-func (r *Table[E]) prepare(drop bool) error {
+func (r *Table[E]) prepare(e E, drop bool) error {
 	db := r.c.gdb.
 		Set("CHARACTER", "utf8mb4,utf8").
 		Set("collation", "utf8mb4_unicode_ci").
 		Table(r.name)
 
 	if drop {
-		if err := db.Migrator().DropTable(r.entity); err != nil {
+		if err := db.Migrator().DropTable(e); err != nil {
 			return err
 		}
 	}
 
-	return db.AutoMigrate(r.entity)
+	return db.AutoMigrate(e)
 }
