@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"github.com/sokool/stream"
 	"github.com/sokool/stream/example/chat/model"
-	"github.com/sokool/stream/store/mysql"
-	"os"
 	"time"
 )
 
@@ -56,21 +54,11 @@ func (a *Member) String() string {
 type Members stream.CRUD[*Member]
 
 func NewMembers() Members {
-	if dsn := os.Getenv("MYSQL_EVENT_STORE"); dsn != "" {
-		c, err := mysql.NewConnection(dsn, &stream.Schemas{})
-		if err != nil {
-			panic(err)
-		}
-
-		m, err := mysql.NewTable[*Member](c, NewMember)
-		if err != nil {
-			panic(err)
-		}
-
-		return m
+	s, err := storage[*Member](NewMember)
+	if err != nil {
+		panic(err)
 	}
-
-	return stream.NewEntities[*Member](NewMember)
+	return s
 }
 
 func NewMember(se stream.Events) (*Member, error) {

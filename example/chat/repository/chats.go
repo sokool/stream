@@ -58,8 +58,6 @@ func (t *Chats) Thread(id string, command func(*model.Thread) error) error {
 	return t.Threads.Execute(id, command)
 }
 
-func (t *Chats) Membersx() {}
-
 func (t *Chats) Register(s *stream.Domain) error {
 	return s.Register(t.Threads, t.Messages, t.Members)
 }

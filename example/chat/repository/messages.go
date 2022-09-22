@@ -69,33 +69,27 @@ func (c *Messages) String() string {
 type Messagesz stream.CRUD[*Messages]
 
 func NewMessagez() Messagesz {
-	if cdn := os.Getenv("MYSQL_EVENT_STORE"); cdn != "" {
-		fmt.Println(cdn)
-		c, err := mysql.NewConnection(cdn, &stream.Schemas{})
-		if err != nil {
-			panic(err)
-		}
-
-		m, err := mysql.NewTable[*Messages](c, NewMessage)
-		if err != nil {
-			panic(err)
-		}
-
-		return m
+	s, err := storage[*Messages](NewMessage)
+	if err != nil {
+		panic(err)
 	}
-
-	return stream.NewEntities[*Messages](NewMessage)
+	return s
 }
 
-//type Channel struct {
-//	ID   string
-//	Name string
-//}
-//
-//func (c Channel) Id() string {
-//	return c.ID
-//}
-//
-//func (c Channel) Append(event stream.Message) error {
-//	return nil
-//}
+func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.CRUD[E], error) {
+	if cdn := os.Getenv("MYSQL_EVENT_STORE"); cdn != "" {
+		c, err := mysql.NewConnection(cdn, &stream.Schemas{})
+		if err != nil {
+			return nil, err
+		}
+
+		m, err := mysql.NewTable[E](c, fn)
+		if err != nil {
+			return nil, err
+		}
+
+		return m, nil
+	}
+
+	return stream.NewEntities[E](fn), nil
+}
