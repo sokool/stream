@@ -134,6 +134,10 @@ func (a *Aggregate[R]) Get(id string) (R, error) {
 }
 
 func (a *Aggregate[R]) Set(r R) error {
+	if err := a.init(); err != nil {
+		return err
+	}
+
 	events, err := NewEvents(r)
 	if err != nil || len(events) == 0 {
 		return err
@@ -182,6 +186,10 @@ func (a *Aggregate[R]) read(id string) (RootID, R, error) {
 	var d RootID
 	var err error
 
+	if err = a.init(); err != nil {
+		return d, r, err
+	}
+
 	if !ok {
 		if r, err = a.OnCreate(id); err != nil {
 			return d, r, err
@@ -219,6 +227,17 @@ func (a *Aggregate[R]) commit(r R, e []Event[any]) error {
 	//a.version = events[len(events)-1].Sequence
 	//a.size += s
 	return a.memory.Set(r.ID(), r)
+}
+
+func (a *Aggregate[R]) init() (err error) {
+	if a.Type.IsZero() {
+		var r R
+		if a.Type, err = NewType(r); err != nil {
+			return
+		}
+	}
+
+	return nil
 }
 
 func (a *Aggregate[R]) String() string {
