@@ -66,7 +66,7 @@ func (c *Messages) String() string {
 	return s
 }
 
-type Messagesz stream.CRUD[*Messages]
+type Messagesz stream.Entities[*Messages]
 
 func NewMessagez() Messagesz {
 	s, err := storage[*Messages](NewMessage)
@@ -76,9 +76,9 @@ func NewMessagez() Messagesz {
 	return s
 }
 
-func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.CRUD[E], error) {
+func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.Entities[E], error) {
 	if cdn := os.Getenv("MYSQL_EVENT_STORE"); cdn != "" {
-		c, err := mysql.NewConnection(cdn, &stream.Schemas{})
+		c, err := mysql.NewConnection(cdn, &stream.Schemas{}, nil)
 		if err != nil {
 			return nil, err
 		}

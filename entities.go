@@ -12,7 +12,7 @@ type Entity interface {
 
 type EntityFunc[E Entity] func(Events) (E, error)
 
-type CRUD[E Entity] interface {
+type Entities[E Entity] interface {
 	Create(Events) (E, error)
 	One(E) error
 	Read([]E, []byte) error
@@ -20,23 +20,23 @@ type CRUD[E Entity] interface {
 	Delete(...E) error
 }
 
-type Entities[E Entity] struct {
+type entities[E Entity] struct {
 	create EntityFunc[E]
 	store  map[string][]byte
 }
 
-func NewEntities[E Entity](fn EntityFunc[E]) CRUD[E] {
-	return &Entities[E]{
+func NewEntities[E Entity](fn EntityFunc[E]) Entities[E] {
+	return &entities[E]{
 		store:  make(map[string][]byte),
 		create: fn,
 	}
 }
 
-func (r *Entities[E]) Create(e Events) (E, error) {
+func (r *entities[E]) Create(e Events) (E, error) {
 	return r.create(e)
 }
 
-func (r *Entities[E]) One(d E) error {
+func (r *entities[E]) One(d E) error {
 	b, found := r.store[d.ID()]
 	if !found {
 		return ErrDocumentNotFound
@@ -45,7 +45,7 @@ func (r *Entities[E]) One(d E) error {
 	return json.Unmarshal(b, &d)
 }
 
-func (r *Entities[E]) Read(ee []E, bytes []byte) error {
+func (r *entities[E]) Read(ee []E, bytes []byte) error {
 	var i int
 	for _, body := range r.store {
 		if err := json.Unmarshal(body, &ee[i]); err != nil {
@@ -56,7 +56,7 @@ func (r *Entities[E]) Read(ee []E, bytes []byte) error {
 	return nil
 }
 
-func (r *Entities[E]) Update(e ...E) error {
+func (r *entities[E]) Update(e ...E) error {
 	for i := range e {
 		b, err := json.Marshal(e[i])
 		if err != nil {
@@ -68,16 +68,16 @@ func (r *Entities[E]) Update(e ...E) error {
 	return nil
 }
 
-func (r *Entities[E]) Delete(e ...E) error {
+func (r *entities[E]) Delete(e ...E) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (r *Entities[E]) Count() int {
+func (r *entities[E]) Count() int {
 	return len(r.store)
 }
 
-func (r *Entities[E]) String() string {
+func (r *entities[E]) String() string {
 	var e E
 	var s = fmt.Sprintf("%T\n", e)
 	for i := range r.store {

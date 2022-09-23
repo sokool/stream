@@ -18,7 +18,7 @@ type Projection[D Document] struct {
 	// Description
 	Description string
 
-	// OnEvents must be set or CRUD interface
+	// OnEvents must be set or Entities interface
 	OnEvents func(Events) (D, error)
 
 	// OnFilter
@@ -39,7 +39,7 @@ type Projection[D Document] struct {
 	// Logger
 	Log Printer
 
-	Documents CRUD[D]
+	Documents Entities[D]
 
 	mu sync.Mutex
 

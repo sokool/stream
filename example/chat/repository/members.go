@@ -51,7 +51,7 @@ func (a *Member) String() string {
 	return fmt.Sprintf("%s |> %s", a.JoinedAt.Format(time.StampMilli), a.Id)
 }
 
-type Members stream.CRUD[*Member]
+type Members stream.Entities[*Member]
 
 func NewMembers() Members {
 	s, err := storage[*Member](NewMember)
