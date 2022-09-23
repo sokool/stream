@@ -58,7 +58,7 @@ func (w *EventsWriter) WriteAt(events Events, pos int64) (n int, err error) {
 			e.Root.Type(),
 			e.Type,
 			e.Sequence,
-			e.Author,
+			e.Meta.Author,
 			e.CreatedAt.UTC().Format("2006-01-02 15:04:05.000000"),
 			b,
 		)

@@ -7,12 +7,16 @@ import (
 	"time"
 )
 
+type Repository interface {
+	EventStore(Schemas) (EventStore, error)
+}
+
 type EventStore interface {
 	ReadWriter(RootID) ReadWriterAt
 	Reader(Query) Reader
 }
 
-type EventStoreFactory func(Schemas, ...Logger) EventStore
+type EventStoreFunc func(*Schemas, Printer) EventStore
 
 // Query read stream events
 type Query struct {

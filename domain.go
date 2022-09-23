@@ -1,26 +1,36 @@
 package stream
 
+import "os"
+
 type RR interface {
 	Register(*Domain) error
 }
 
 type Domain struct {
 	store   EventStore
-	schemas Schemas
+	schemas *Schemas
 	logger  Logger
 	writers *multiWriter
 }
 
-func NewDomain(es EventStore) *Domain {
+type Configuration struct {
+	EventStore EventStoreFunc
+	Logger     Logger
+}
+
+func NewDomain(c *Configuration) *Domain {
 	s := Domain{
-		schemas: make(Schemas, 0),
+		schemas: NewSchemas(),
 		store:   NewEventStore(),
-		logger:  DefaultLogger,
+		logger:  NewLogger(os.Stdout, "stream", true).WithTag,
 		writers: &multiWriter{},
 	}
 
-	if es != nil {
-		s.store = es
+	if c.Logger != nil {
+		s.logger = c.Logger
+	}
+	if c.EventStore != nil {
+		s.store = c.EventStore(s.schemas, s.logger("EventStore"))
 	}
 
 	return &s

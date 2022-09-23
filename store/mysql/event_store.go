@@ -9,11 +9,11 @@ type EventsStore struct {
 	*Connection
 }
 
-func NewEventsStore(host string, s *Schemas, l ...Log) (*EventsStore, error) {
+func NewEventsStore(host string, s *Schemas, l Printer) (*EventsStore, error) {
 	var e EventsStore
 	var err error
 
-	if e.Connection, err = NewConnection(host, s, l...); err != nil {
+	if e.Connection, err = NewConnection(host, s, l); err != nil {
 		return nil, err
 	}
 	e.schemas = s

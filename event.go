@@ -18,21 +18,8 @@ type Event[T any] struct {
 	// meta TODO
 	Meta Meta
 
-	// Every Message has 3 ID's [ID, CorrelationID, CausationID]. When you are
-	// responding to a Message (either a Thread or and Event) you copy the
-	// CorrelationID of the Message you are responding to, to your new
-	// CorrelationID. The CausationID of your Message is the ID of the
-	// Message you are responding to.
-	//
-	// Greg Young
-	// --> https://groups.google.com/d/msg/dddcqrs/qGYC6qZEqOI/LhQup9v7EwAJ
-	Correlation, Causation ID
-
 	// CreatedAt
 	CreatedAt time.Time
-
-	// Author helps to check what person/device generate this Message.
-	Author string
 
 	Coupled []Type
 }
@@ -48,26 +35,23 @@ func NewEvent[T any](id RootID, v T, sequence int64) (e Event[T], err error) {
 	}
 
 	return Event[T]{
-		ID:          uid(fmt.Sprintf("%s.%s.%d", id, e.Type, sequence)),
-		Root:        id,
-		Type:        t.CutPrefix(id.Type()),
-		Sequence:    sequence,
-		Body:        v,
-		Meta:        Meta{},
-		Correlation: "",
-		Causation:   "",
-		CreatedAt:   time.Now(),
-		Author:      "",
+		ID:        uid(fmt.Sprintf("%s.%s.%d", id, e.Type, sequence)),
+		Root:      id,
+		Type:      t.CutPrefix(id.Type()),
+		Sequence:  sequence,
+		Body:      v,
+		Meta:      Meta{},
+		CreatedAt: time.Now(),
 	}, nil
 }
 
 func (e *Event[T]) Correlate(d ID) *Event[T] {
-	e.Correlation = d
+	e.Meta.Correlation = d
 	return e
 }
 
 func (e *Event[T]) Respond(to Event[any]) *Event[T] {
-	e.Correlation, e.Causation = to.Correlation, to.ID
+	e.Meta.Correlation, e.Meta.Causation = to.Meta.Correlation, to.ID
 	return e
 }
 
@@ -92,13 +76,13 @@ type Events []Event[any]
 
 func NewEvents(r Root) (ee Events, err error) {
 	var id RootID
-	var e Event[any]
 	var k = r.Version() + 1
 	if id, err = NewRootID(r); err != nil {
 		return nil, err
 	}
 
 	for i, v := range r.Uncommitted(true) {
+		var e Event[any]
 		if e, err = NewEvent(id, v, k+int64(i)); err != nil {
 			return nil, err
 		}

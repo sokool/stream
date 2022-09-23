@@ -11,8 +11,9 @@ import (
 )
 
 func TestAggregates(t *testing.T) {
-	id, chats, es := "73HdaUj", repository.NewChats(), NewEventStore(t)
-	if err := stream.NewDomain(es).Register(chats); err != nil {
+	id, chats := "73HdaUj", repository.NewChats()
+
+	if err := NewDomain(t).Register(chats); err != nil {
 		t.Fatal(err)
 	}
 
@@ -30,13 +31,16 @@ func TestAggregates(t *testing.T) {
 	}
 
 	time.Sleep(time.Second)
-
 }
 
-func NewEventStore(t *testing.T) stream.EventStore {
-	es, err := mysql.NewEventsStore(os.Getenv("MYSQL_EVENT_STORE"), &stream.Schemas{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return es
+func NewDomain(t *testing.T) *stream.Domain {
+	return stream.NewDomain(&stream.Configuration{
+		EventStore: func(s *stream.Schemas, l stream.Printer) stream.EventStore {
+			es, err := mysql.NewEventsStore(os.Getenv("MYSQL_EVENT_STORE"), s, l)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return es
+		},
+	})
 }

@@ -98,10 +98,6 @@ func (a *Aggregate[R]) Get(id string) (R, error) {
 		a.Store = NewEventStore()
 	}
 
-	if a.LoadEventsInChunks <= 0 {
-		a.LoadEventsInChunks = 1024
-	}
-
 	rw, evs, m := a.Store.ReadWriter(d), make([]Event[any], a.LoadEventsInChunks), 0
 	for {
 		switch m, err = rw.ReadAt(evs, r.Version()); {
@@ -178,10 +174,6 @@ func (a *Aggregate[R]) Set(r R) error {
 }
 
 func (a *Aggregate[R]) read(id string) (RootID, R, error) {
-	if a.memory == nil {
-		a.memory = NewCache[string, R](a.CleanCacheAfter)
-	}
-
 	var r, ok = a.memory.Get(id)
 	var d RootID
 	var err error
@@ -237,6 +229,14 @@ func (a *Aggregate[R]) init() (err error) {
 		}
 	}
 
+	if a.memory == nil {
+		a.memory = NewCache[string, R](a.CleanCacheAfter)
+	}
+
+	if a.LoadEventsInChunks <= 0 {
+		a.LoadEventsInChunks = 1024
+	}
+
 	return nil
 }
 
@@ -254,11 +254,8 @@ func (a *Aggregate[R]) String() string {
 }
 
 func (a *Aggregate[R]) Register(in *Domain) (err error) {
-	if a.Type.IsZero() {
-		var r R
-		if a.Type, err = NewType(r); err != nil {
-			return
-		}
+	if err = a.init(); err != nil {
+		return err
 	}
 
 	if a.Store == nil {

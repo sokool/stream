@@ -11,16 +11,14 @@ import (
 	"time"
 )
 
-type Log = func(string, ...any)
-
 type Connection struct {
 	db      *sqlx.DB
 	schemas *stream.Schemas
-	log     Log
+	log     stream.Printer
 	gdb     *gorm.DB
 }
 
-func NewConnection(host string, s *stream.Schemas, l ...Log) (*Connection, error) {
+func NewConnection(host string, s *stream.Schemas, l stream.Printer) (*Connection, error) {
 	var c Connection
 	var err error
 
@@ -28,11 +26,11 @@ func NewConnection(host string, s *stream.Schemas, l ...Log) (*Connection, error
 		return nil, err
 	}
 
-	if len(l) == 0 {
-		l = append(l, log.Printf)
+	if l == nil {
+		l = log.Printf
 	}
 
-	c.log, c.schemas = l[0], s
+	c.log, c.schemas = l, s
 
 	c.gdb = c.gdb.Session(&gorm.Session{
 		NewDB:  true,
