@@ -63,7 +63,7 @@ func NewMembers() Members {
 
 func NewMember(se stream.Events) (*Member, error) {
 	for i := range se {
-		switch e := se[i].Body.(type) {
+		switch e := se[i].Body().(type) {
 		case model.ThreadJoined:
 			return &Member{Id: e.Participant}, nil
 

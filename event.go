@@ -6,25 +6,27 @@ import (
 	"time"
 )
 
-type Event[T any] struct {
-	ID       ID
-	Type     Type
-	Root     RootID
-	Sequence int64
+type Event struct {
+	id       ID
+	typ      Type
+	root     RootID
+	sequence int64
 
 	// body TODO
-	Body T
+	body any
 
 	// meta TODO
-	Meta Meta
+	meta Meta
 
-	// CreatedAt
-	CreatedAt time.Time
+	// createdAt
+	createdAt time.Time
 
-	Coupled []Type
+	coupled []Type
+
+	version int
 }
 
-func NewEvent[T any](id RootID, v T, sequence int64) (e Event[T], err error) {
+func NewEvent(id RootID, v any, sequence int64) (e Event, err error) {
 	var t Type
 	if t, err = NewType(v); err != nil {
 		return e, nil
@@ -34,45 +36,85 @@ func NewEvent[T any](id RootID, v T, sequence int64) (e Event[T], err error) {
 		return e, Err("invalid event sequence")
 	}
 
-	return Event[T]{
-		ID:        uid(fmt.Sprintf("%s.%s.%d", id, e.Type, sequence)),
-		Root:      id,
-		Type:      t.CutPrefix(id.Type()),
-		Sequence:  sequence,
-		Body:      v,
-		Meta:      Meta{},
-		CreatedAt: time.Now(),
+	return Event{
+		id:        uid(fmt.Sprintf("%s.%s.%d", id, e.typ, sequence)),
+		root:      id,
+		typ:       t.CutPrefix(id.Type()),
+		sequence:  sequence,
+		body:      v,
+		meta:      Meta{},
+		createdAt: time.Now(),
 	}, nil
 }
 
-func (e *Event[T]) Correlate(d ID) *Event[T] {
-	e.Meta.Correlation = d
+func (e *Event) Stream() ID {
+	return e.root.id
+}
+
+func (e *Event) Root() Type {
+	return e.root.typ
+}
+
+func (e *Event) Type() Type {
+	return e.typ
+}
+
+func (e *Event) Sequence() int64 {
+	return e.sequence
+}
+
+func (e *Event) Name() string {
+	return fmt.Sprintf("%s%s", e.root.typ, e.typ)
+}
+
+func (e *Event) Body() any {
+	return e.body
+}
+
+func (e *Event) CreatedAt() time.Time {
+	return e.createdAt
+}
+
+func (e *Event) Belongs(to RootID) bool {
+	return e.root == to
+}
+
+func (e *Event) Correlate(with Event) *Event {
+	e.meta.Correlation = with.id
 	return e
 }
 
-func (e *Event[T]) Respond(to Event[any]) *Event[T] {
-	e.Meta.Correlation, e.Meta.Causation = to.Meta.Correlation, to.ID
+func (e *Event) Respond(to Event) *Event {
+	e.meta.Correlation, e.meta.Causation = to.meta.Correlation, to.id
 	return e
 }
 
-func (e *Event[E]) String() string {
-	return fmt.Sprintf("%s:%d:%s[%s]", e.Root.id, e.Sequence, e.Root.typ, e.Type)
+func (e *Event) String() string {
+	return fmt.Sprintf("%s:%d:%s[%s]", e.root.id, e.sequence, e.root.typ, e.typ)
 }
 
-func (e *Event[T]) GoString() string {
+func (e *Event) GoString() string {
 	b, err := json.MarshalIndent(e, "", "\t")
 	if err != nil {
 		return err.Error()
 	}
 
-	return fmt.Sprintf("%T\n%s\n", e.Body, b)
+	return fmt.Sprintf("%T\n%s\n", e.body, b)
 }
 
-func (e *Event[T]) IsZero() bool {
-	return e.ID == ""
+func (e *Event) IsZero() bool {
+	return e.id == ""
 }
 
-type Events []Event[any]
+func (e *Event) Encode() ([]byte, error) {
+	return registry.encode(*e)
+}
+
+func (e *Event) Decode(b []byte) error {
+	return registry.decode(e, b)
+}
+
+type Events []Event
 
 func NewEvents(r Root) (ee Events, err error) {
 	var id RootID
@@ -82,7 +124,7 @@ func NewEvents(r Root) (ee Events, err error) {
 	}
 
 	for i, v := range r.Uncommitted(true) {
-		var e Event[any]
+		var e Event
 		if e, err = NewEvent(id, v, k+int64(i)); err != nil {
 			return nil, err
 		}
@@ -95,11 +137,11 @@ func NewEvents(r Root) (ee Events, err error) {
 
 // Unique gives RootID when all events has same RootID
 func (r Events) Unique() RootID {
-	if len(r) == 0 || !r.hasUnique(r[0].Root) {
+	if len(r) == 0 || !r.hasUnique(r[0].root) {
 		return RootID{}
 	}
 
-	return r[0].Root
+	return r[0].root
 }
 
 func (r Events) Shrink(f Filter) (Events, error) {
@@ -123,14 +165,14 @@ func (r Events) Shrink(f Filter) (Events, error) {
 
 func (r Events) hasUnique(id RootID) bool {
 	for i := range r {
-		if id != r[i].Root && !r[i].IsZero() {
+		if id != r[i].root && !r[i].IsZero() {
 			return false
 		}
 	}
 	return true
 }
 
-func (r Events) Append(e Event[any]) error {
+func (r Events) Append(e Event) error {
 	return nil
 }
 
@@ -144,7 +186,7 @@ func (r Events) String() string {
 			if r[i].IsZero() {
 				continue
 			}
-			t, d = append(t, r[i].Type.String()), r[i].Sequence
+			t, d = append(t, r[i].typ.String()), r[i].sequence
 		}
 
 		return fmt.Sprintf("%s:%d:%s%v", id.id, d, id.typ, t)
@@ -162,7 +204,7 @@ func (r Events) String() string {
 
 func (r Events) Extend(s Root) (err error) {
 	var id RootID
-	var e Event[any]
+	var e Event
 	var k = s.Version() + 1
 	if id, err = NewRootID(s); err != nil {
 		return err
@@ -184,5 +226,3 @@ func (r Events) Extend(s Root) (err error) {
 func (r Events) Size() int {
 	return len(r)
 }
-
-//func DecodeEvent[E any]()

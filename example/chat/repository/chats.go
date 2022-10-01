@@ -20,26 +20,29 @@ func NewChats() *Chats {
 				//fmt.Println("on.create", t)
 				return t, err
 			},
-			OnRead: func(t *model.Thread) error {
-				//fmt.Println("on.read", t)
-				return nil
-			},
-			OnWrite: func(t *model.Thread) error {
-				//fmt.Println("on.write", t)
+			OnLoad: func(t *model.Thread) error {
+				//fmt.Println("on.load", t)
 				return nil
 			},
 			OnCommit: func(t *model.Thread, e stream.Events) error {
 				//fmt.Println("on.commit", t, len(e))
 				return nil
 			},
+			OnSave: func(t *model.Thread) error {
+				//fmt.Println("on.save", t)
+				return nil
+			},
 			Events: stream.Schemas{
-				stream.NewScheme(model.ThreadStarted{}).Name("Started").Description("some desc").Couple(""),
-				stream.NewScheme(model.ThreadMessage{}),
-				stream.NewScheme(model.ThreadJoined{}),
-				stream.NewScheme(model.ThreadLeft{}),
-				stream.NewScheme(model.ThreadKicked{}),
-				stream.NewScheme(model.ThreadMuted{}),
-				stream.NewScheme(model.ThreadClosed{}),
+				model.ThreadStarted{}: {
+					Description: "thread starts automatically, when there is a longer break between messages",
+					Coupling:    []string{"Messages", "Member"},
+				},
+				model.ThreadMessage{}: {},
+				model.ThreadJoined{}:  {},
+				model.ThreadLeft{}:    {},
+				model.ThreadKicked{}:  {},
+				model.ThreadMuted{}:   {},
+				model.ThreadKicked{}:  {},
 			},
 			OnCacheCleanup:     nil,
 			CleanCacheAfter:    -1,

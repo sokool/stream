@@ -12,10 +12,10 @@ import (
 
 type Printer = func(string, ...interface{})
 
-type Logger = func(tag string) Printer
+type Logger = func(Type) Printer
 
-var DefaultLogger = func(tag string) Printer {
-	return NewLogger(os.Stdout, tag, true).Print
+var DefaultLogger = func(t Type) Printer {
+	return NewLogger(os.Stdout, t.String(), true).Print
 }
 
 type logger struct {
@@ -124,7 +124,7 @@ func (l *logger) Print(format string, a ...interface{}) {
 	l.w.Write([]byte(fmt.Sprintf("%s [%s] %s%s\n", n, typ, x, format)))
 }
 
-func (l *logger) WithTag(name string) Printer { return NewLogger(l.w, name, l.verbose).Print }
+func (l *logger) WithTag(name Type) Printer { return NewLogger(l.w, string(name), l.verbose).Print }
 
 func (l *logger) contains(b []byte, of ...string) (string, bool) {
 	for i := range of {

@@ -10,7 +10,7 @@ func TestNewScheme(t *testing.T) {
 	threads := repository.NewChats()
 
 	for i := range threads.Threads.Events {
-		fmt.Println(threads.Threads.Events[i].String())
+		fmt.Println(threads.Threads.Events[i])
 	}
 
 	//x := threads.(stream.Aggregate[stream.Root])

@@ -2,25 +2,26 @@ package stream
 
 import "os"
 
-type RR interface {
+type Registerer interface {
 	Register(*Domain) error
 }
 
 type Domain struct {
 	store   EventStore
-	schemas *Schemas
 	logger  Logger
 	writers *multiWriter
 }
 
 type Configuration struct {
-	EventStore EventStoreFunc
-	Logger     Logger
+	// Logger
+	Logger func(Type) Printer
+
+	// EventStore factory
+	EventStore func(Printer) EventStore // todo func not needed
 }
 
 func NewDomain(c *Configuration) *Domain {
 	s := Domain{
-		schemas: NewSchemas(),
 		store:   NewEventStore(),
 		logger:  NewLogger(os.Stdout, "stream", true).WithTag,
 		writers: &multiWriter{},
@@ -30,13 +31,13 @@ func NewDomain(c *Configuration) *Domain {
 		s.logger = c.Logger
 	}
 	if c.EventStore != nil {
-		s.store = c.EventStore(s.schemas, s.logger("EventStore"))
+		s.store = c.EventStore(s.logger("EventStore"))
 	}
 
 	return &s
 }
 
-func (s *Domain) Register(r ...RR) error {
+func (s *Domain) Register(r ...Registerer) error {
 	for i := range r {
 		if err := r[i].Register(s); err != nil {
 			return err
@@ -44,6 +45,8 @@ func (s *Domain) Register(r ...RR) error {
 	}
 	return nil
 }
+
+func (s *Domain) Run() {}
 
 // MultiWriter creates a writer that duplicates its writes to all the
 // provided writers, similar to the Unix tee(1) command.

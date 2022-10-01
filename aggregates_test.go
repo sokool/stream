@@ -35,8 +35,8 @@ func TestAggregates(t *testing.T) {
 
 func NewDomain(t *testing.T) *stream.Domain {
 	return stream.NewDomain(&stream.Configuration{
-		EventStore: func(s *stream.Schemas, l stream.Printer) stream.EventStore {
-			es, err := mysql.NewEventsStore(os.Getenv("MYSQL_EVENT_STORE"), s, l)
+		EventStore: func(l stream.Printer) stream.EventStore {
+			es, err := mysql.NewEventsStore(os.Getenv("MYSQL_EVENT_STORE"), l)
 			if err != nil {
 				t.Fatal(err)
 			}

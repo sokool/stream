@@ -21,8 +21,8 @@ func NewEventsWriter(c *Connection, id ...RootID) *EventsWriter {
 	return &w
 }
 
-func (w *EventsWriter) WriteAt(events Events, pos int64) (n int, err error) {
-	if len(events) == 0 {
+func (w *EventsWriter) WriteAt(ee Events, pos int64) (n int, err error) {
+	if len(ee) == 0 {
 		return 0, nil
 	}
 
@@ -42,24 +42,24 @@ func (w *EventsWriter) WriteAt(events Events, pos int64) (n int, err error) {
 		}
 	}()
 
-	for _, e := range events {
+	for _, e := range ee {
 		var b []byte
-		if !w.root.IsZero() && e.Root != w.root {
+		if !w.root.IsZero() && !e.Belongs(w.root) {
 			return 0, fmt.Errorf("rootid missmatch, required %s", w.root)
 		}
 
-		if b, err = w.schemas.Encode(e); err != nil {
+		if b, err = e.Encode(); err != nil {
 			return 0, err
 		}
 
 		q := `INSERT INTO aggregates(id, root, event, sequence, author, created_at, body) VALUES(?, ?, ?, ?, ?, ?, ?)`
 		_, err = tx.Exec(q,
-			e.Root.ID(),
-			e.Root.Type(),
-			e.Type,
-			e.Sequence,
-			e.Meta.Author,
-			e.CreatedAt.UTC().Format("2006-01-02 15:04:05.000000"),
+			e.Stream(),
+			e.Root(),
+			e.Type(),
+			e.Sequence(),
+			"",
+			e.CreatedAt().UTC().Format("2006-01-02 15:04:05.000000"),
 			b,
 		)
 
@@ -76,7 +76,7 @@ func (w *EventsWriter) WriteAt(events Events, pos int64) (n int, err error) {
 		return 0, err
 	}
 
-	return len(events), nil
+	return len(ee), nil
 }
 
 func (w *EventsWriter) Write(e Events) (n int, err error) {

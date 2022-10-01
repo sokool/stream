@@ -44,9 +44,9 @@ type Projection[D Document] struct {
 	mu sync.Mutex
 
 	//builder *Builder
-	schemas Schemas
+	schemas schemas
 	time    time.Duration
-	recent  *Event[any]
+	recent  *Event
 	count   int64
 }
 
@@ -104,7 +104,7 @@ func (h *Projection[D]) write(e Events) (_ int, err error) {
 		}
 
 		for i := range e {
-			if err = d.Commit(e[i].Body, e[i].CreatedAt); err != nil {
+			if err = d.Commit(e[i].body, e[i].createdAt); err != nil {
 				return 0, err
 			}
 		}
@@ -139,7 +139,7 @@ func (h *Projection[D]) Register(in *Domain) (err error) {
 	}
 
 	if h.Log == nil {
-		h.Log = in.logger(h.Name.String())
+		h.Log = in.logger(h.Name)
 	}
 
 	in.writers.list = append(in.writers.list, h)
@@ -207,28 +207,28 @@ func (h *Projection[D]) Register(in *Domain) (err error) {
 //	for i := range h {
 //		p := h[i]
 //
-//		if p.Name == "" {
+//		if p.Type == "" {
 //			return Err("stream handlers: name is required")
 //		}
 //
-//		if _, found := r.registered[p.Name]; found {
-//			return Err("stream handlers: %s already exists", p.Name)
+//		if _, found := r.registered[p.Type]; found {
+//			return Err("stream handlers: %s already exists", p.Type)
 //		}
 //
 //		if p.Log == nil {
-//			p.Log = r.log(p.Name)
+//			p.Log = r.log(p.Type)
 //		}
 //
 //		if p.schemas == nil {
 //			p.schemas = r.schemas
 //		}
 //
-//		r.registered[p.Name] = p
+//		r.registered[p.Type] = p
 //
 //		if p.BuildOnStart {
 //			b := p.Builder()
 //			if b == nil {
-//				return Err("%s building not supported", p.Name)
+//				return Err("%s building not supported", p.Type)
 //			}
 //
 //			if err := b.Start(r.store.Search(p.query())); err != nil {

@@ -78,7 +78,7 @@ func NewMessagez() Messagesz {
 
 func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.Entities[E], error) {
 	if cdn := os.Getenv("MYSQL_EVENT_STORE"); cdn != "" {
-		c, err := mysql.NewConnection(cdn, &stream.Schemas{}, nil)
+		c, err := mysql.NewConnection(cdn, nil)
 		if err != nil {
 			return nil, err
 		}

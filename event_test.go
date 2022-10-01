@@ -38,7 +38,7 @@ func TestNewEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if e.Root != id {
+	if !e.Belongs(id) {
 		t.Fatal("ble")
 	}
 }

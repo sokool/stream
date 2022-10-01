@@ -7,7 +7,7 @@ import (
 )
 
 type EventsReader struct {
-	conn  *Connection
+	*Connection
 	query EventsQuery
 }
 
@@ -21,7 +21,7 @@ func (r *EventsReader) ReadAt(e Events, pos int64) (n int, err error) {
 }
 
 func (r *EventsReader) Read(e Events) (n int, err error) {
-	res, err := r.conn.db.Query(r.query.Limit(e.Size()).String())
+	res, err := r.db.Query(r.query.Limit(e.Size()).String())
 	if err != nil {
 		return 0, err
 	}
@@ -43,7 +43,7 @@ func (r *EventsReader) Read(e Events) (n int, err error) {
 			return
 		}
 
-		if err = r.conn.schemas.Decode(&e[n], b); err != nil {
+		if err = e[n].Decode(b); err != nil {
 			return
 		}
 		n++

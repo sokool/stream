@@ -8,7 +8,7 @@ import (
 )
 
 type Repository interface {
-	EventStore(Schemas) (EventStore, error)
+	EventStore(schemas) (EventStore, error)
 }
 
 type EventStore interface {
@@ -16,7 +16,7 @@ type EventStore interface {
 	Reader(Query) Reader
 }
 
-type EventStoreFunc func(*Schemas, Printer) EventStore
+type EventStoreFunc func(*schemas, Printer) EventStore
 
 // Query read stream events
 type Query struct {
@@ -27,7 +27,6 @@ type Query struct {
 	From, To     time.Time
 	Text         string
 	NewestFirst  bool
-	Limit        int
 	Shutdown     context.Context
 }
 
@@ -46,7 +45,7 @@ func NewEventStore() *store {
 func (s *store) Write(e Events) (n int, err error) {
 	for i := range e {
 		s.all = append(s.all, e[i])
-		s.namespaces[e[i].Root] = append(s.namespaces[e[i].Root], e[i])
+		s.namespaces[e[i].root] = append(s.namespaces[e[i].root], e[i])
 	}
 	return len(e), nil
 }
@@ -78,7 +77,7 @@ func (s *store) ReadWriter(n RootID) ReadWriterAt {
 func (s *store) Types() []RootID {
 	var st []RootID
 	for i := range s.namespaces {
-		st = append(st, s.namespaces[i][len(s.namespaces[i])-1].Root)
+		st = append(st, s.namespaces[i][len(s.namespaces[i])-1].root)
 	}
 
 	return st
@@ -96,7 +95,7 @@ func (s *store) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.all, s.namespaces = []Event[any]{}, make(map[RootID]Events)
+	s.all, s.namespaces = []Event{}, make(map[RootID]Events)
 }
 
 func (s *store) Size() (streams int, events int) {
@@ -145,7 +144,7 @@ func (s *streamStore) ReadAt(e Events, pos int64) (int, error) {
 	}
 
 	var i int
-	var m Event[any]
+	var m Event
 	for i, m = range events[from:to] {
 		e[i] = m
 		//fmt.Println("    ", e)
@@ -174,12 +173,12 @@ func (s *streamStore) WriteAt(e Events, pos int64) (int, error) {
 
 	for i, e := range e {
 		if pos >= 0 {
-			if int64(len(s.store.namespaces[e.Root])) != pos {
+			if int64(len(s.store.namespaces[e.root])) != pos {
 				return i, ErrConcurrentWrite
 			}
 		}
 
-		s.store.namespaces[e.Root] = append(s.store.namespaces[e.Root], e)
+		s.store.namespaces[e.root] = append(s.store.namespaces[e.root], e)
 		s.store.all = append(s.store.all, e)
 	}
 

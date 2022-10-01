@@ -12,13 +12,12 @@ import (
 )
 
 type Connection struct {
-	db      *sqlx.DB
-	schemas *stream.Schemas
-	log     stream.Printer
-	gdb     *gorm.DB
+	db  *sqlx.DB
+	log stream.Printer
+	gdb *gorm.DB
 }
 
-func NewConnection(host string, s *stream.Schemas, l stream.Printer) (*Connection, error) {
+func NewConnection(host string, l stream.Printer) (*Connection, error) {
 	var c Connection
 	var err error
 
@@ -30,7 +29,7 @@ func NewConnection(host string, s *stream.Schemas, l stream.Printer) (*Connectio
 		l = log.Printf
 	}
 
-	c.log, c.schemas = l, s
+	c.log = l
 
 	c.gdb = c.gdb.Session(&gorm.Session{
 		NewDB:  true,

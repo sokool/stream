@@ -22,11 +22,6 @@ type Uncommitter interface {
 	Uncommitted(clear bool) (events []any)
 }
 
-type Serializer interface {
-	json.Marshaler
-	json.Unmarshaler
-}
-
 type RootFunc[R Root] func(R) error
 
 type RootID struct {
@@ -118,7 +113,7 @@ type Name struct {
 	root  RootID
 }
 
-func NewName(r Root, e Event[any]) (n Name, err error) {
+func NewName(r Root, e Event) (n Name, err error) {
 	if n.root, err = NewRootID(r); err != nil {
 		return
 	}

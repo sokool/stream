@@ -3,43 +3,120 @@ package stream
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/alecthomas/jsonschema"
+	"reflect"
+	"time"
 )
 
-type Schemas []Scheme
+type Serializer interface {
+	Encode(e Event) ([]byte, error)
+	Decode(e *Event, b []byte) error
+}
+
+var registry schemas
+
+type schemas struct {
+	list []schema
+}
 
 // todo instead []byte type RawEvent []byte
-func (r *Schemas) Decode(e *Event[any], b []byte) error {
-	return json.Unmarshal(b, e)
-}
+func (r *schemas) decode(e *Event, b []byte) error {
+	var j event
+	if err := json.Unmarshal(b, &j); err != nil {
+		return err
+	}
 
-func (r *Schemas) Encode(e Event[any]) ([]byte, error) {
-	return json.Marshal(e)
-}
+	e.id, e.typ, e.root, e.sequence, e.meta = j.ID, j.Typ, j.Root, j.Sequence, j.Meta
+	e.createdAt, e.coupled, e.version = j.CreatedAt, j.Coupled, j.Version
 
-func (r *Schemas) Append(e Scheme) error {
-	x := append(*r, e)
-	r = &x
+	s := r.get(*e)
+	if s.isZero() {
+		return fmt.Errorf("scheme %s nooot found", s.name())
+	}
+
+	if s.migrate != nil {
+		s.migrate(e.version, b)
+	}
+	v := reflect.New(s.reflect)
+	if len(b) > 0 {
+		if err := json.Unmarshal(j.Body, v.Interface()); err != nil {
+			return Err("scheme %s decode failed due %w", e, err)
+		}
+	}
+
+	e.body = v.Elem().Interface()
+
 	return nil
 }
 
-func (r *Schemas) Merge(s Schemas) error {
-	*r = append(*r, s...)
+func (r *schemas) encode(e Event) ([]byte, error) {
+	b, err := json.Marshal(e.body)
+	if err != nil {
+		return nil, err
+	}
+
+	return json.Marshal(event{
+		ID:        e.id,
+		Typ:       e.typ,
+		Root:      e.root,
+		Sequence:  e.sequence,
+		Body:      b,
+		Meta:      e.meta,
+		CreatedAt: e.createdAt,
+		Coupled:   e.coupled,
+	})
+}
+
+func (r *schemas) merge(s Schemas, root Type) (err error) {
+	for e, a := range s {
+		var n Type
+		var c Coupling
+		if n, err = NewType(e); err != nil {
+			return err
+		}
+
+		if c, err = NewCoupling(a.Coupling...); err != nil {
+			return err
+		}
+
+		t := reflect.TypeOf(e)
+		p := t.PkgPath() + "/" + t.Name()
+		r.list = append(r.list, schema{
+			id:          uid(p).String(),
+			event:       n.CutPrefix(root),
+			root:        root,
+			description: a.Description,
+			coupling:    c,
+			version:     0,
+			scheme:      nil,
+			reflect:     t,
+			path:        p,
+			migrate:     a.OnMigrate,
+		})
+	}
 	return nil
 }
 
-func (r *Schemas) Filtrate(e *Event[any]) (bool, error) {
+func (r *schemas) get(e Event) schema {
+	for _, s := range r.list {
+		if s.name() == e.Name() {
+			return s
+		}
+	}
+	return schema{}
+}
+
+func (r *schemas) Filtrate(e *Event) (bool, error) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (r *Schemas) IsCoupled(with Type, of Events) bool {
+func (r *schemas) IsCoupled(with Type, of Events) bool {
 	//r.mu.Lock()
 	//defer r.mu.Unlock()
 
 	return false
 	//for i := range of {
-	//	if e := r.get(of[i]); e != nil && e.isCoupled(with) {
+	//	if e := r.Get(of[i]); e != nil && e.isCoupled(with) {
 	//		return true
 	//	}
 	//}
@@ -47,106 +124,82 @@ func (r *Schemas) IsCoupled(with Type, of Events) bool {
 	//return false
 }
 
-//func (r *Schemas) Names() []string {
-//	r.mu.Lock()
-//	defer r.mu.Unlock()
-//
-//	var names []string
-//	for n := range r.types {
-//		names = append(names, n)
-//	}
-//
-//	for n := range r.aliases {
-//		names = append(names, n)
-//	}
-//
-//	return names
-//}
-
-//func (r *Schemas) has(e EVENT) (Event, bool) {
-//	n := infoOf(e)
-//	for _, m := range r.types {
-//		if m.info.path == n.path {
-//			return *m, true
-//		}
-//	}
-//
-//	return Event{}, false
-//}
-
-//func (r *Schemas) Get(m Event[any]) *Event {
-//	//r.mu.Lock()
-//	//defer r.mu.Unlock()
-//
-//	return r.get(m)
-//}
-
-//func (r *Schemas) get(m Event[any]) *Event {
-//	n := m.Name()
-//	s, ok := r.types[n]
-//	if !ok {
-//		s = r.aliases[n]
-//	}
-//
-//	return s
-//}
-
-type Scheme struct {
-	root        RootType
-	name        string
+type schema struct {
+	id          string
+	event       Type
+	root        Type
 	description string
-	value       any
 	coupling    Coupling
 	version     int
 	scheme      []byte // describe structure in JSON Event https://json-schema.org/
-	info        *info
+	path        string
+	reflect     reflect.Type
+	migrate     func(version int, body []byte)
 }
 
-func NewScheme(v any) Scheme {
-	s := Scheme{value: v}
-	s.info = infoOf(s.value)
-	if s.name == "" {
-		s.name = s.info.typ
-	}
-
-	return s
+func (s schema) name() string {
+	return fmt.Sprintf("%s%s", s.root, s.event)
 }
 
-func (e Scheme) Name(s string) Scheme { e.name = s; return e }
-
-func (e Scheme) Description(s string) Scheme { e.description = s; return e }
-
-func (e Scheme) Couple(with ...Type) Scheme {
-	e.coupling = e.coupling.Add(with...)
-	return e
+func (s schema) isZero() bool {
+	return s.root.IsZero() || s.event.IsZero()
 }
 
-func (e Scheme) String() string {
-	return fmt.Sprintf("%s%s", e.root, e.name)
+//	func (s Scheme) Couple(with ...Type) Scheme {
+//		s.Coupling = s.Coupling.Add(with...)
+//		return s
+//	}
+//func (s Scheme) String() string {
+//	return s.name()
+//}
+
+//	func (s Scheme) MarshalJSON() ([]byte, error) {
+//		return json.Marshal(view{
+//			"ID":          s.info.uuid,
+//			"Type":        s.root,
+//			"Description": s.Description,
+//			"Schema":      jsonschema.Reflect(s.Event),
+//			"Coupling":    s.Coupling,
+//			"Location":    s.info.path,
+//			"Version":     s.version,
+//		})
+//	}
+//
+//	func (s Scheme) Root(t Type) Scheme {
+//		s.Name, s.root = s.Name.CutPrefix(t), t
+//		return s
+//	}
+
+//
+//func (s Scheme) isCoupled(with ...Type) bool {
+//	return s.Coupling.IsStrong(with...)
+//}
+
+type event struct {
+	ID       ID //todo root.id root.type event.type event.sequence
+	Typ      Type
+	Root     RootID
+	Sequence int64
+
+	// body TODO
+	Body json.RawMessage
+
+	// meta TODO
+	Meta Meta
+
+	// createdAt
+	CreatedAt time.Time
+
+	Coupled []Type
+
+	Version int
 }
 
-func (e Scheme) MarshalJSON() ([]byte, error) {
-	return json.Marshal(view{
-		"ID":          e.info.uuid,
-		"Type":        e.root,
-		"Description": e.description,
-		"Schema":      jsonschema.Reflect(e.value),
-		"Coupling":    e.coupling,
-		"Location":    e.info.path,
-		"Version":     e.version,
-	})
+type Schemas map[any]Scheme
+
+type Scheme struct {
+	Name        string
+	Description string
+	Coupling    []string
+	OnMigrate   func(version int, payload []byte)
 }
-
-func (e Scheme) isCoupled(with ...Type) bool {
-	return e.coupling.IsStrong(with...)
-}
-
-func (e Scheme) isValid() error {
-	if e.root.IsZero() || e.name == "" {
-		return fmt.Errorf("schma type, kind, value is required")
-	}
-
-	return nil
-}
-
-type RootType struct{ Type }

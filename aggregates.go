@@ -18,29 +18,29 @@ type Aggregate[R Root] struct {
 	// It is kept in memory
 	OnCreate func(string) (R, error)
 
-	// Events
-	Events Schemas
-
 	// OnSession called on command dispatch when Session not exists
 	//OnSession func(R) (Session, error)
 
-	// OnRead when all events are committed to R and state is rebuild from all previously persisted Event
-	OnRead RootFunc[R]
+	// OnLoad when all events are committed to R and state is rebuild from all previously persisted Event
+	OnLoad RootFunc[R]
 
 	// OnRecall
 	//OnRecall func(Session, R) error
 
-	// OnWrite called just before events are persisted to database
-	OnWrite RootFunc[R]
+	// OnSave called just after events are persisted to database
+	OnSave RootFunc[R]
 
-	// OnCommit
+	// OnCommit when new events are committed to a Root
 	OnCommit func(R, Events) error // todo not able to deny it (error)
+
+	// OnRecall
+	OnRecall func(R) time.Time
 
 	// OnCacheCleanup when aggregate is removed from memory
 	OnCacheCleanup RootFunc[R]
 
-	// RecallAfter default
-	//RecallAfter time.Duration
+	// Events
+	Events Schemas
 
 	CleanCacheAfter time.Duration
 
@@ -56,7 +56,7 @@ type Aggregate[R Root] struct {
 	Writer Writer
 
 	// Logger
-	//Log Printer
+	Log Printer
 
 	// memory keeps created Changelog of Aggregate in order to avoid rebuilding
 	// state of each Aggregate everytime when Thread is called
@@ -89,24 +89,30 @@ func (a *Aggregate[R]) Execute(id string, command RootFunc[R]) error {
 }
 
 func (a *Aggregate[R]) Get(id string) (R, error) {
-	d, r, err := a.read(id)
-	if err != nil {
+	var found bool
+	var d RootID
+	var r R
+	var err error
+
+	if err = a.init(); err != nil {
 		return r, err
 	}
 
-	if a.Store == nil {
-		a.Store = NewEventStore()
+	if r, found = a.memory.Get(id); !found {
+		if r, err = a.OnCreate(id); err != nil {
+			return r, err
+		}
 	}
 
-	rw, evs, m := a.Store.ReadWriter(d), make([]Event[any], a.LoadEventsInChunks), 0
+	if d, err = NewRootID(r); err != nil {
+		return r, err
+	}
+
+	rw, evs, m := a.Store.ReadWriter(d), make(Events, a.LoadEventsInChunks), 0
 	for {
 		switch m, err = rw.ReadAt(evs, r.Version()); {
 
 		case err == ErrEndOfStream || err == nil:
-			if m == 0 {
-				return r, nil
-			}
-
 			if failed := a.commit(r, evs[:m]); failed != nil {
 				return r, failed
 			}
@@ -115,13 +121,13 @@ func (a *Aggregate[R]) Get(id string) (R, error) {
 				continue
 			}
 
-			if a.OnRead != nil {
-				if err = a.OnRead(r); err != nil {
+			if a.OnLoad != nil {
+				if err = a.OnLoad(r); err != nil {
 					return r, err
 				}
 			}
 
-			return r, nil
+			return r, a.memory.Set(r.ID(), r)
 
 		default:
 			return r, Err("%s root read failed due %w", r, err)
@@ -135,7 +141,7 @@ func (a *Aggregate[R]) Set(r R) error {
 	}
 
 	events, err := NewEvents(r)
-	if err != nil || len(events) == 0 {
+	if err = events.Extend(r); err != nil || len(events) == 0 {
 		return err
 	}
 
@@ -158,46 +164,34 @@ func (a *Aggregate[R]) Set(r R) error {
 		return err
 	}
 
-	if a.OnWrite != nil {
-		if err = a.OnWrite(r); err != nil {
-			return err
-		}
-	}
-
 	if a.Writer != nil {
 		if _, err = a.Writer.Write(events); err != nil {
 			return err
 		}
 	}
 
-	return nil
-}
-
-func (a *Aggregate[R]) read(id string) (RootID, R, error) {
-	var r, ok = a.memory.Get(id)
-	var d RootID
-	var err error
-
-	if err = a.init(); err != nil {
-		return d, r, err
-	}
-
-	if !ok {
-		if r, err = a.OnCreate(id); err != nil {
-			return d, r, err
+	if a.OnSave != nil {
+		if err = a.OnSave(r); err != nil {
+			return err
 		}
 	}
 
-	if d, err = NewRootID(r); err != nil {
-		return d, r, err
-	}
-
-	return d, r, nil
+	return a.memory.Set(r.ID(), r)
 }
 
-func (a *Aggregate[R]) commit(r R, e []Event[any]) error {
+func (a *Aggregate[R]) commit(r R, e []Event) error {
 	if len(e) == 0 {
 		return nil
+	}
+
+	// todo check if given slice of events has correct iteration of sequences, match it with current
+	//      version of R
+	for i := range e {
+		if err := r.Commit(e[i].body, e[i].createdAt); err != nil {
+			return err
+		}
+
+		//s += int64(len(e.Body))
 	}
 
 	if a.OnCommit != nil {
@@ -205,20 +199,9 @@ func (a *Aggregate[R]) commit(r R, e []Event[any]) error {
 			return err
 		}
 	}
-
-	// todo check if given slice of events has correct iteration of sequences, match it with current
-	//      version of R
-	for i := range e {
-		if err := r.Commit(e[i].Body, e[i].CreatedAt); err != nil {
-			return err
-		}
-
-		//s += int64(len(e.Body))
-	}
-
 	//a.version = events[len(events)-1].Sequence
 	//a.size += s
-	return a.memory.Set(r.ID(), r)
+	return nil
 }
 
 func (a *Aggregate[R]) init() (err error) {
@@ -227,6 +210,10 @@ func (a *Aggregate[R]) init() (err error) {
 		if a.Type, err = NewType(r); err != nil {
 			return
 		}
+	}
+
+	if a.Store == nil {
+		a.Store = NewEventStore()
 	}
 
 	if a.memory == nil {
@@ -258,12 +245,16 @@ func (a *Aggregate[R]) Register(in *Domain) (err error) {
 		return err
 	}
 
-	if a.Store == nil {
+	if _, ok := a.Store.(*store); ok {
 		a.Store = in.store
 	}
 
-	if err = in.schemas.Merge(a.Events); err != nil {
+	if err = registry.merge(a.Events, a.Type); err != nil {
 		return err
+	}
+
+	if a.Log == nil {
+		a.Log = in.logger(a.Type)
 	}
 
 	if a.Writer != nil {
