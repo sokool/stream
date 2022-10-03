@@ -171,16 +171,16 @@ func (s *streamStore) WriteAt(e Events, pos int64) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for i, e := range e {
-		if pos >= 0 {
-			if int64(len(s.store.namespaces[e.root])) != pos {
-				return i, ErrConcurrentWrite
-			}
-		}
-
-		s.store.namespaces[e.root] = append(s.store.namespaces[e.root], e)
-		s.store.all = append(s.store.all, e)
+	if !e.hasUnique(s.stream) {
+		return 0, Err("wrong root")
 	}
+
+	if int64(s.store.namespaces[s.stream].Size()) != pos {
+		return 0, ErrConcurrentWrite
+	}
+
+	s.store.namespaces[s.stream] = append(s.store.namespaces[s.stream], e...)
+	s.store.all = append(s.store.all, e...)
 
 	return len(e), nil
 }
