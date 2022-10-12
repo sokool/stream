@@ -47,12 +47,12 @@ func NewDomain(c *Configuration) *Domain {
 	return &s
 }
 
-func (s *Domain) Register(r ...Component) error {
+func (s *Domain) Register(c ...Component) error {
 	//s.mu.Lock()
 	//defer s.mu.Unlock()
 
-	for i := range r {
-		if err := r[i].register(s); err != nil {
+	for i := range c {
+		if err := c[i].register(s); err != nil {
 			return err
 		}
 	}
