@@ -1,18 +1,16 @@
 package stream
 
-import "os"
+import (
+	"os"
+	"sync"
+)
 
-type Registerer interface {
-	Register(*Domain) error
-}
-
-type Domain struct {
-	store   EventStore
-	logger  Logger
-	writers *multiWriter
+type Component interface {
+	register(*Domain) error
 }
 
 type Configuration struct {
+	Name Type
 	// Logger
 	Logger func(Type) Printer
 
@@ -20,11 +18,21 @@ type Configuration struct {
 	EventStore func(Printer) EventStore // todo func not needed
 }
 
+type Domain struct {
+	name    Type
+	store   EventStore
+	logger  Logger
+	log     Printer
+	writers map[Type]Writer
+	mu      sync.RWMutex
+}
+
 func NewDomain(c *Configuration) *Domain {
 	s := Domain{
+		name:    c.Name,
 		store:   NewEventStore(),
 		logger:  NewLogger(os.Stdout, "stream", true).WithTag,
-		writers: &multiWriter{},
+		writers: map[Type]Writer{},
 	}
 
 	if c.Logger != nil {
@@ -34,51 +42,66 @@ func NewDomain(c *Configuration) *Domain {
 		s.store = c.EventStore(s.logger("EventStore"))
 	}
 
+	s.log = s.logger(s.name)
+
 	return &s
 }
 
-func (s *Domain) Register(r ...Registerer) error {
+func (s *Domain) Register(r ...Component) error {
+	//s.mu.Lock()
+	//defer s.mu.Unlock()
+
 	for i := range r {
-		if err := r[i].Register(s); err != nil {
+		if err := r[i].register(s); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+func (s *Domain) Write(e Events) (n int, err error) {
+	var swg sync.WaitGroup
+	var che = make(chan error, len(s.writers))
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for t := range s.writers {
+		swg.Add(1)
+		go func(t Type, w Writer, e Events) {
+			ok := registry.isCoupled(t, e)
+			if !ok {
+				swg.Done()
+			}
+
+			if _, err = w.Write(e); err != nil {
+				if ok {
+					che <- err
+				} else {
+					s.log("ERR %s %s failed due `%s` error", e, t, err)
+				}
+			}
+
+			if ok {
+				swg.Done()
+			}
+
+		}(t, s.writers[t], e)
+	}
+
+	swg.Wait()
+	close(che)
+
+	return len(e), <-che
+}
+
+func (s *Domain) register(w Writer, t Type) error {
+	if _, ok := s.writers[t]; ok {
+		return Err("%s already registered", t)
+	}
+	s.writers[t] = w
+
+	return nil
+}
+
 func (s *Domain) Run() {}
-
-// MultiWriter creates a writer that duplicates its writes to all the
-// provided writers, similar to the Unix tee(1) command.
-//
-// Each write is written to each listed writer, one at a time.
-// If a listed writer returns an error, that overall write operation
-// stops and returns the error; it does not continue down the list.
-func MultiWriter(w ...Writer) Writer {
-	s := make([]Writer, 0, len(w))
-	for i := range w {
-		if mw, ok := w[i].(*multiWriter); ok {
-			s = append(s, mw.list...)
-		} else {
-			s = append(s, w[i])
-		}
-	}
-	return &multiWriter{s}
-}
-
-type multiWriter struct {
-	list []Writer
-}
-
-func (m *multiWriter) Write(e Events) (n int, err error) {
-	for _, w := range m.list {
-		if n, err = w.Write(e); err != nil {
-			return
-		}
-		if n != len(e) {
-			err = ErrShortWrite
-			return
-		}
-	}
-	return len(e), nil
-}

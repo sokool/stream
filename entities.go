@@ -20,6 +20,7 @@ type Entities[E Entity] interface {
 	Delete(...E) error
 }
 
+// todo use https://github.com/hashicorp/go-memdb
 type entities[E Entity] struct {
 	create EntityFunc[E]
 	store  map[string][]byte

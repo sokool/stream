@@ -30,6 +30,7 @@ type Query struct {
 	Shutdown     context.Context
 }
 
+// todo use https://github.com/hashicorp/go-memdb
 type store struct {
 	mu         sync.Mutex
 	namespaces map[RootID]Events

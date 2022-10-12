@@ -12,6 +12,7 @@ type Chats struct {
 }
 
 func NewChats() *Chats {
+	var m, _ = stream.NewType("Messages")
 	return &Chats{
 		Threads: &stream.Aggregate[*model.Thread]{
 			Description: "",
@@ -35,24 +36,31 @@ func NewChats() *Chats {
 			Events: stream.Schemas{
 				model.ThreadStarted{}: {
 					Description: "thread starts automatically, when there is a longer break between messages",
-					Coupling:    []string{"Messages", "Member"},
+					//Transaction: m,
 				},
-				model.ThreadMessage{}: {},
-				model.ThreadJoined{}:  {},
-				model.ThreadLeft{}:    {},
-				model.ThreadKicked{}:  {},
-				model.ThreadMuted{}:   {},
-				model.ThreadKicked{}:  {},
+				model.ThreadMessage{}: {
+					//Transaction: m,
+				},
+				model.ThreadJoined{}: {
+					//Transaction: m,
+				},
+				model.ThreadLeft{}: {
+					//Transaction: m,
+				},
+				model.ThreadKicked{}: {},
+				model.ThreadMuted{}:  {},
+				model.ThreadKicked{}: {},
 			},
 			OnCacheCleanup:     nil,
 			CleanCacheAfter:    -1,
 			LoadEventsInChunks: 8,
 		},
 		Members: &stream.Projection[*Member]{
-			Documents: NewMembers(),
+			Store: NewMembers(),
 		},
 		Messages: &stream.Projection[*Messages]{
-			Documents: NewMessagez(),
+			Name:  m,
+			Store: NewMessagez(),
 		},
 	}
 }

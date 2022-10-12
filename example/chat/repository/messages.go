@@ -5,7 +5,9 @@ import (
 	"github.com/sokool/stream"
 	"github.com/sokool/stream/example/chat/model"
 	"github.com/sokool/stream/store/mysql"
+	"math/rand"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -34,11 +36,16 @@ func (c *Messages) Version() int64 {
 }
 
 func (c *Messages) Commit(event any, createdAt time.Time) error {
+	//delay(time.Millisecond * 1500)
 	switch e := event.(type) {
 	case model.ThreadStarted:
 		c.Channel, c.StartedAt = e.Channel, createdAt.String()
 
 	case model.ThreadMessage:
+		if strings.Contains(e.Text, "crush!") {
+			return fmt.Errorf("oh no, it's crush message")
+		}
+
 		c.Text = append(c.Text, fmt.Sprintf("%s | %s |> %s",
 			createdAt.Format(time.StampMilli),
 			e.Participant,
@@ -46,6 +53,9 @@ func (c *Messages) Commit(event any, createdAt time.Time) error {
 
 	case model.ThreadClosed:
 		c.FinishedAt = createdAt.String()
+
+	case model.ThreadLeft:
+		//return fmt.Errorf("i will not accept it, do not want it")
 	}
 
 	c.Ver++
@@ -92,4 +102,12 @@ func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.Entities[E], erro
 	}
 
 	return stream.NewEntities[E](fn), nil
+}
+
+func delay(x time.Duration) {
+	max := int64(x)
+	min := int64(time.Millisecond * 100)
+	t := time.Duration(rand.Int63n(max-min) + min)
+
+	time.Sleep(t)
 }

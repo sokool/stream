@@ -240,7 +240,7 @@ func (a *Aggregate[R]) String() string {
 	return e.String()
 }
 
-func (a *Aggregate[R]) Register(in *Domain) (err error) {
+func (a *Aggregate[R]) register(in *Domain) (err error) {
 	if err = a.init(); err != nil {
 		return err
 	}
@@ -258,9 +258,11 @@ func (a *Aggregate[R]) Register(in *Domain) (err error) {
 	}
 
 	if a.Writer != nil {
-		in.writers.list = append(in.writers.list, a.Writer)
+		if err = in.register(a.Writer, a.Type); err != nil {
+			return err
+		}
 	}
-	a.Writer = in.writers
+	a.Writer = in
 	return nil
 }
 

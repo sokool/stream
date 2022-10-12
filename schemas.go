@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -12,9 +13,10 @@ type Serializer interface {
 	Decode(e *Event, b []byte) error
 }
 
-var registry schemas
+var registry = &schemas{}
 
 type schemas struct {
+	mu   sync.Mutex
 	list []schema
 }
 
@@ -26,7 +28,7 @@ func (r *schemas) decode(e *Event, b []byte) error {
 	}
 
 	e.id, e.typ, e.root, e.sequence, e.meta = j.ID, j.Typ, j.Root, j.Sequence, j.Meta
-	e.createdAt, e.coupled, e.version = j.CreatedAt, j.Coupled, j.Version
+	e.createdAt, e.version = j.CreatedAt, j.Version
 
 	s := r.get(*e)
 	if s.isZero() {
@@ -62,20 +64,19 @@ func (r *schemas) encode(e Event) ([]byte, error) {
 		Body:      b,
 		Meta:      e.meta,
 		CreatedAt: e.createdAt,
-		Coupled:   e.coupled,
 	})
 }
 
 func (r *schemas) merge(s Schemas, root Type) (err error) {
 	for e, a := range s {
 		var n Type
-		var c Coupling
+		var c Types
 		if n, err = NewType(e); err != nil {
 			return err
 		}
 
-		if c, err = NewCoupling(a.Coupling...); err != nil {
-			return err
+		if !a.Transaction.IsZero() {
+			c = Types{a.Transaction: true}
 		}
 
 		t := reflect.TypeOf(e)
@@ -110,18 +111,29 @@ func (r *schemas) Filtrate(e *Event) (bool, error) {
 	panic("implement me")
 }
 
-func (r *schemas) IsCoupled(with Type, of Events) bool {
-	//r.mu.Lock()
-	//defer r.mu.Unlock()
+func (r *schemas) coupling(e Events) Types {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	c := make(Types)
+	for i := range e {
+		c.merge(r.get(e[i]).coupling)
+	}
+
+	return c
+}
+
+func (r *schemas) isCoupled(t Type, e Events) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for i := range e {
+		if r.get(e[i]).coupling[t] {
+			return true
+		}
+	}
 
 	return false
-	//for i := range of {
-	//	if e := r.Get(of[i]); e != nil && e.isCoupled(with) {
-	//		return true
-	//	}
-	//}
-	//
-	//return false
 }
 
 type schema struct {
@@ -129,7 +141,7 @@ type schema struct {
 	event       Type
 	root        Type
 	description string
-	coupling    Coupling
+	coupling    Types
 	version     int
 	scheme      []byte // describe structure in JSON Event https://json-schema.org/
 	path        string
@@ -146,7 +158,7 @@ func (s schema) isZero() bool {
 }
 
 //	func (s Scheme) Couple(with ...Type) Scheme {
-//		s.Coupling = s.Coupling.Add(with...)
+//		s.IsStrongCoupled = s.IsStrongCoupled.Add(with...)
 //		return s
 //	}
 //func (s Scheme) String() string {
@@ -159,7 +171,7 @@ func (s schema) isZero() bool {
 //			"Type":        s.root,
 //			"Description": s.Description,
 //			"Schema":      jsonschema.Reflect(s.Event),
-//			"Coupling":    s.Coupling,
+//			"IsStrongCoupled":    s.IsStrongCoupled,
 //			"Location":    s.info.path,
 //			"Version":     s.version,
 //		})
@@ -172,7 +184,7 @@ func (s schema) isZero() bool {
 
 //
 //func (s Scheme) isCoupled(with ...Type) bool {
-//	return s.Coupling.IsStrong(with...)
+//	return s.IsStrongCoupled.IsStrong(with...)
 //}
 
 type event struct {
@@ -190,8 +202,6 @@ type event struct {
 	// createdAt
 	CreatedAt time.Time
 
-	Coupled []Type
-
 	Version int
 }
 
@@ -200,6 +210,6 @@ type Schemas map[any]Scheme
 type Scheme struct {
 	Name        string
 	Description string
-	Coupling    []string
+	Transaction Type
 	OnMigrate   func(version int, payload []byte)
 }
