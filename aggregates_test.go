@@ -31,7 +31,7 @@ func TestAggregates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := chats.Thread(id, func(t *Thread) error { return t.Message("greg@gog.pl", "crush!") }); err != nil {
+	if err := chats.Thread(id, func(t *Thread) error { return t.Message("greg@gog.pl", "crusher!") }); err != nil {
 		t.Fatal(err)
 	}
 

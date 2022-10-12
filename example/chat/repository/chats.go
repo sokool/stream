@@ -13,6 +13,7 @@ type Chats struct {
 
 func NewChats() *Chats {
 	var m, _ = stream.NewType("Messages")
+	var n, _ = stream.NewType("Members")
 	return &Chats{
 		Threads: &stream.Aggregate[*model.Thread]{
 			Description: "",
@@ -56,6 +57,7 @@ func NewChats() *Chats {
 			LoadEventsInChunks: 8,
 		},
 		Members: &stream.Projection[*Member]{
+			Name:  n,
 			Store: NewMembers(),
 		},
 		Messages: &stream.Projection[*Messages]{
