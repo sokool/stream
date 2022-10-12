@@ -21,8 +21,6 @@ type Event struct {
 	// createdAt
 	createdAt time.Time
 
-	coupled []Type
-
 	version int
 }
 
@@ -144,24 +142,24 @@ func (r Events) Unique() RootID {
 	return r[0].root
 }
 
-func (r Events) Shrink(f Filter) (Events, error) {
-	if f == nil {
-		return r, nil
-	}
-
-	var o Events
-	for i := range r {
-		ok, err := f.Filtrate(&r[i])
-		if err != nil {
-			return nil, err
-		}
-
-		if ok {
-			o = append(o, r[i])
-		}
-	}
-	return o, nil
-}
+//func (r Events) Shrink(f Filter) (Events, error) {
+//	if f == nil {
+//		return r, nil
+//	}
+//
+//	var o Events
+//	for i := range r {
+//		ok, err := f.Filtrate(&r[i])
+//		if err != nil {
+//			return nil, err
+//		}
+//
+//		if ok {
+//			o = append(o, r[i])
+//		}
+//	}
+//	return o, nil
+//}
 
 func (r Events) hasUnique(id RootID) bool {
 	for i := range r {
@@ -225,4 +223,17 @@ func (r Events) Extend(s Root) (err error) {
 
 func (r Events) Size() int {
 	return len(r)
+}
+
+func (r Events) IsZero() bool {
+	return r.Size() == 0
+}
+
+func (r Events) Last() Event {
+	if s := r.Size(); s != 0 {
+		return r[s-1:][0]
+	}
+
+	return Event{}
+
 }

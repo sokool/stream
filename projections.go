@@ -18,7 +18,8 @@ type Projection[D Document] struct {
 	// Description
 	Description string
 
-	// OnEvents must be set or Entities interface
+	// OnEvents
+	// or Entities must be set
 	OnEvents func(Events) (D, error)
 
 	// OnFilter
@@ -39,43 +40,64 @@ type Projection[D Document] struct {
 	// Logger
 	Log Printer
 
-	Documents Entities[D]
+	Store Entities[D]
 
-	mu sync.Mutex
-
-	//builder *Builder
-	schemas schemas
-	time    time.Duration
-	recent  *Event
-	count   int64
+	mu      sync.Mutex
+	blocked error
 }
 
-func (h *Projection[D]) Write(e Events) (n int, err error) {
-	s := len(e)
-	if s == 0 {
-		return 0, nil
-	}
-
-	if h.schemas.IsCoupled(h.Name, e) {
-		return h.write(e)
-	}
-
-	go func(m Events) {
-		if _, failed := h.write(m); failed != nil {
-			h.log("ERR %s failed due %s", m, failed)
+func (p *Projection[D]) init() error {
+	if p.Name.IsZero() {
+		var v D
+		var err error
+		if p.Name, err = NewType(v); err != nil {
+			return err
 		}
-	}(e)
+	}
 
-	return s, nil
+	if p.OnEvents == nil && p.Store == nil {
+		return Err("%s projection requires Document CRUD implementation or OnEvents func", p.Name)
+	}
+
+	if p.Log == nil {
+		p.Log = DefaultLogger(p.Name)
+	}
+
+	//p.log("initialized queue size: %d, delivery timeout: %s", p.EventsQueueSize, p.EventsDeliveryTimeout)
+	return nil
 }
 
-func (h *Projection[D]) write(e Events) (_ int, err error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+func (p *Projection[D]) Write(e Events) (n int, err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	if e, err = e.Shrink(h.OnFilter); err != nil {
+	if err = p.init(); err != nil {
 		return 0, err
 	}
+
+	if n = len(e); n == 0 {
+		return
+	}
+
+	if p.blocked != nil {
+		return 0, p.blocked // return ErrBlocker or somthing
+	}
+
+	defer func(t time.Time) {
+		if err != nil {
+			p.blocked = err
+			return
+		}
+		p.log("DBG %s delivered in %s", e, time.Since(t))
+	}(time.Now())
+
+	return n, p.write(e)
+}
+
+func (p *Projection[D]) write(e Events) (err error) {
+	//if e, err = e.Shrink(h.OnFilter); err != nil {
+	//	return 0, err
+	//}
 
 	//if h.builder != nil && h.builder.IsRunning() {
 	//	if err = h.builder.Append(m); err != nil {
@@ -85,65 +107,52 @@ func (h *Projection[D]) write(e Events) (_ int, err error) {
 	//	return n, nil
 	//}
 	//}
+
 	var d D
-	if h.OnEvents != nil {
-		if d, err = h.OnEvents(e); err != nil {
-			return 0, err
-		}
-	}
-
-	if h.Documents != nil {
-
-		d, err = h.Documents.Create(e)
-		if err != nil || reflect.ValueOf(d).IsNil() { //todo i do now how to assert generic D to nil
-			return 0, err
-		}
-
-		if err = h.Documents.One(d); err != nil && err != ErrDocumentNotFound {
-			return 0, err
-		}
-
-		for i := range e {
-			if err = d.Commit(e[i].body, e[i].createdAt); err != nil {
-				return 0, err
-			}
-		}
-
-		if err = h.Documents.Update(d); err != nil {
-			return 0, err
-		}
-
-	}
-
-	h.log("DBG %s delivered", e)
-	return len(e), nil
-}
-
-func (h *Projection[D]) log(m string, a ...interface{}) {
-	if h.Log == nil {
-		return
-	}
-	h.Log(m, a...)
-}
-
-func (h *Projection[D]) Register(in *Domain) (err error) {
-	if h.Name.IsZero() {
-		var v D
-		if h.Name, err = NewType(v); err != nil {
+	if p.OnEvents != nil {
+		if d, err = p.OnEvents(e); err != nil {
 			return err
 		}
 	}
 
-	if h.OnEvents == nil && h.Documents == nil {
-		return Err("%s projection requires Document CRUD implementation or OnEvents func", h.Name)
+	if p.Store != nil {
+		d, err = p.Store.Create(e)
+		if err != nil || reflect.ValueOf(d).IsNil() { //todo i do now how to check generic D is nil
+			return err
+		}
+
+		if err = p.Store.One(d); err != nil && err != ErrDocumentNotFound {
+			return err
+		}
+
+		for i := range e {
+			if err = d.Commit(e[i].body, e[i].createdAt); err != nil {
+				return err
+			}
+		}
+
+		if err = p.Store.Update(d); err != nil {
+			return err
+		}
 	}
 
-	if h.Log == nil {
-		h.Log = in.logger(h.Name)
-	}
-
-	in.writers.list = append(in.writers.list, h)
 	return nil
+}
+
+func (p *Projection[D]) log(m string, a ...interface{}) {
+	if p.Log == nil {
+		return
+	}
+
+	p.Log(m, a...)
+}
+
+func (p *Projection[D]) register(in *Domain) error {
+	if err := p.init(); err != nil {
+		return err
+	}
+
+	return in.register(p, p.Name)
 }
 
 //func (h *Projection[D]) query() Query {

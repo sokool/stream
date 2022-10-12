@@ -19,13 +19,13 @@ func NewCache[K comparable, V any](cleanupAfter ...time.Duration) *Cache[K, V] {
 		list: make(map[K]V),
 	}
 
-	go func() {
-		for range time.NewTimer(cleanupAfter[0]).C {
-			for range c.list {
-
-			}
-		}
-	}()
+	//go func() {
+	//	for range time.NewTimer(cleanupAfter[0]).C {
+	//		for range c.list {
+	//
+	//		}
+	//	}
+	//}()
 	return &c
 }
 

@@ -1,6 +1,7 @@
 package stream_test
 
 import (
+	"fmt"
 	"github.com/sokool/stream"
 	"github.com/sokool/stream/example/chat/model"
 	"github.com/sokool/stream/example/chat/repository"
@@ -13,7 +14,7 @@ import (
 func TestAggregates(t *testing.T) {
 	id, chats := "73HdaUj", repository.NewChats()
 
-	if err := NewDomain(t).Register(chats); err != nil {
+	if err := chats.Register(NewDomain(t)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -30,13 +31,36 @@ func TestAggregates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	time.Sleep(time.Second)
+	if err := chats.Thread(id, func(t *Thread) error { return t.Message("greg@gog.pl", "crush!") }); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := chats.Thread(id, func(t *Thread) error { return t.Join("mark@gog.pl") }); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := chats.Thread(id, func(t *Thread) error { return t.Message("tom@on.de", "fine, thx!") }); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := chats.Thread(id, func(t *Thread) error { return t.Leave("tom@on.de") }); err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Println("done")
+	time.Sleep(time.Second * 7)
 }
 
 func NewDomain(t *testing.T) *stream.Domain {
 	return stream.NewDomain(&stream.Configuration{
+		Name: "MyCoolTestDomain",
 		EventStore: func(l stream.Printer) stream.EventStore {
-			es, err := mysql.NewEventsStore(os.Getenv("MYSQL_EVENT_STORE"), l)
+			host := os.Getenv("MYSQL_EVENT_STOREs")
+			if host == "" {
+				return stream.NewEventStore()
+			}
+
+			es, err := mysql.NewEventsStore(host, l)
 			if err != nil {
 				t.Fatal(err)
 			}
