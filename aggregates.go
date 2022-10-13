@@ -140,8 +140,8 @@ func (a *Aggregate[R]) Set(r R) error {
 		return err
 	}
 
-	events, err := NewEvents(r)
-	if err = events.Extend(r); err != nil || len(events) == 0 {
+	events, err := make(Events, 0).Append(r)
+	if err != nil || len(events) == 0 {
 		return err
 	}
 

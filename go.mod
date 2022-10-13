@@ -11,9 +11,11 @@ require (
 )
 
 require (
+	github.com/corpix/uarand v0.0.0-20170723150923-031be390f409 // indirect
 	github.com/doug-martin/goqu v5.0.0+incompatible // indirect
 	github.com/doug-martin/goqu/v9 v9.18.0 // indirect
 	github.com/iancoleman/orderedmap v0.0.0-20190318233801-ac98e3ecb4b0 // indirect
+	github.com/icrowley/fake v0.0.0-20220625154756-3c7517006344 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/mattn/go-sqlite3 v1.14.15 // indirect

@@ -4,14 +4,28 @@ import (
 	"fmt"
 	"github.com/sokool/stream"
 	"github.com/sokool/stream/example/chat/model"
-	"github.com/sokool/stream/store/mysql"
-	"math/rand"
-	"os"
 	"strings"
 	"time"
 )
 
-type Messages struct {
+type Conversations struct {
+	*stream.Projection[*Conversation]
+}
+
+func NewConversations() *Conversations {
+	s, err := storage[*Conversation](NewConversation)
+	if err != nil {
+		panic(err)
+	}
+
+	return &Conversations{
+		Projection: &stream.Projection[*Conversation]{
+			Store: s,
+		},
+	}
+}
+
+type Conversation struct {
 	Id         string
 	Channel    string
 	Text       []string `gorm:"type:json;serializer:json"`
@@ -20,22 +34,22 @@ type Messages struct {
 	Ver        int64
 }
 
-func NewMessage(m stream.Events) (*Messages, error) {
+func NewConversation(m stream.Events) (*Conversation, error) {
 	id := m.Unique()
 	if id.IsZero() {
 		return nil, nil
 	}
 
-	return &Messages{Id: id.Hash()}, nil
+	return &Conversation{Id: id.Hash()}, nil
 }
 
-func (c *Messages) ID() string { return c.Id }
+func (c *Conversation) ID() string { return c.Id }
 
-func (c *Messages) Version() int64 {
+func (c *Conversation) Version() int64 {
 	return c.Ver
 }
 
-func (c *Messages) Commit(event any, createdAt time.Time) error {
+func (c *Conversation) Commit(event any, createdAt time.Time) error {
 	//delay(time.Millisecond * 1500)
 	switch e := event.(type) {
 	case model.ThreadStarted:
@@ -63,7 +77,7 @@ func (c *Messages) Commit(event any, createdAt time.Time) error {
 	return nil
 }
 
-func (c *Messages) String() string {
+func (c *Conversation) String() string {
 	s := fmt.Sprintf("----- #%s.%s channel --------- %s ------------------\n",
 		c.Channel, c.ID, c.StartedAt)
 	for i := range c.Text {
@@ -74,40 +88,4 @@ func (c *Messages) String() string {
 		c.Channel, c.ID, len(c.Text))
 
 	return s
-}
-
-type Messagesz stream.Entities[*Messages]
-
-func NewMessagez() Messagesz {
-	s, err := storage[*Messages](NewMessage)
-	if err != nil {
-		panic(err)
-	}
-	return s
-}
-
-func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.Entities[E], error) {
-	if cdn := os.Getenv("MYSQL_EVENT_STORE"); cdn != "" {
-		c, err := mysql.NewConnection(cdn, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		m, err := mysql.NewTable[E](c, fn)
-		if err != nil {
-			return nil, err
-		}
-
-		return m, nil
-	}
-
-	return stream.NewEntities[E](fn), nil
-}
-
-func delay(x time.Duration) {
-	max := int64(x)
-	min := int64(time.Millisecond * 100)
-	t := time.Duration(rand.Int63n(max-min) + min)
-
-	time.Sleep(t)
 }

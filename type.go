@@ -30,7 +30,7 @@ func NewType(v any) (Type, error) {
 }
 
 func (t Type) Hash() string {
-	return uid(t.String()).String()
+	return uid(t.String())
 }
 
 func (t Type) String() string {
@@ -54,6 +54,6 @@ func (t Type) LowerCase() Type {
 	return Type(strings.ToLower(string(t)))
 }
 
-func uid(s string) ID {
-	return ID(uuid.NewSHA1(uuid.NameSpaceDNS, []byte(s)).String())
+func uid(s string) string {
+	return uuid.NewSHA1(uuid.NameSpaceDNS, []byte(s)).String()
 }

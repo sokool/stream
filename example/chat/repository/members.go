@@ -16,6 +16,25 @@ type Member struct {
 	Seq      int64
 }
 
+func NewMember(se stream.Events) (*Member, error) {
+	for i := range se {
+		switch e := se[i].Body().(type) {
+		case model.ThreadJoined:
+			return &Member{Id: e.Participant}, nil
+
+		case model.ThreadLeft:
+			return &Member{Id: e.Participant}, nil
+
+		case model.ThreadKicked:
+			return &Member{Id: e.Participant}, nil
+
+		case model.ThreadMuted:
+			return &Member{Id: e.Participant}, nil
+		}
+	}
+	return nil, nil
+}
+
 func (a *Member) ID() string {
 	return string(a.Id)
 }
@@ -51,31 +70,19 @@ func (a *Member) String() string {
 	return fmt.Sprintf("%s |> %s", a.JoinedAt.Format(time.StampMilli), a.Id)
 }
 
-type Members stream.Entities[*Member]
+type Members struct {
+	*stream.Projection[*Member]
+}
 
-func NewMembers() Members {
+func NewMembers() *Members {
 	s, err := storage[*Member](NewMember)
 	if err != nil {
 		panic(err)
 	}
-	return s
-}
 
-func NewMember(se stream.Events) (*Member, error) {
-	for i := range se {
-		switch e := se[i].Body().(type) {
-		case model.ThreadJoined:
-			return &Member{Id: e.Participant}, nil
-
-		case model.ThreadLeft:
-			return &Member{Id: e.Participant}, nil
-
-		case model.ThreadKicked:
-			return &Member{Id: e.Participant}, nil
-
-		case model.ThreadMuted:
-			return &Member{Id: e.Participant}, nil
-		}
+	return &Members{
+		Projection: &stream.Projection[*Member]{
+			Store: s,
+		},
 	}
-	return nil, nil
 }

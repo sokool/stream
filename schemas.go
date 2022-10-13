@@ -82,7 +82,7 @@ func (r *schemas) merge(s Schemas, root Type) (err error) {
 		t := reflect.TypeOf(e)
 		p := t.PkgPath() + "/" + t.Name()
 		r.list = append(r.list, schema{
-			id:          uid(p).String(),
+			id:          uid(p),
 			event:       n.CutPrefix(root),
 			root:        root,
 			description: a.Description,

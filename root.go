@@ -68,7 +68,7 @@ func (id RootID) Type() Type {
 }
 
 func (id RootID) Hash() string {
-	return uid(id.String()).String()
+	return uid(id.String())
 }
 
 func (id RootID) MarshalJSON() ([]byte, error) {
