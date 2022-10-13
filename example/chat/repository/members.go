@@ -82,7 +82,22 @@ func NewMembers() *Members {
 
 	return &Members{
 		Projection: &stream.Projection[*Member]{
-			Store: s,
+			Documents: s,
 		},
 	}
+}
+
+func (m *Members) Recent() ([]*Member, error) {
+	qy := []byte(`SELECT * FROM member WHERE seq > 400`)
+	return m.Documents.Read(qy)
+}
+
+func (m *Members) Name(n string) (*Member, error) {
+	q := fmt.Sprintf(`SELECT id FROM member WHERE id = "%s"`, n)
+	o, err := m.Documents.Read([]byte(q))
+	if err != nil || len(o) == 0 {
+		return nil, err
+	}
+
+	return o[0], nil
 }

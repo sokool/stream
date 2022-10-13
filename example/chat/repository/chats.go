@@ -31,7 +31,7 @@ func (t *Chats) Register(d *stream.Domain) error {
 	return d.Register(t.Threads, t.Conversations, t.Members)
 }
 
-func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.Entities[E], error) {
+func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.Documents[E], error) {
 	if cdn := os.Getenv("MYSQL_EVENT_STORE"); cdn != "" {
 		c, err := mysql.NewConnection(cdn, nil)
 		if err != nil {
@@ -46,7 +46,7 @@ func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.Entities[E], erro
 		return m, nil
 	}
 
-	return stream.NewEntities[E](fn), nil
+	return stream.NewDocuments[E](fn), nil
 }
 
 func delay(x time.Duration) {

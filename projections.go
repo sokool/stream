@@ -1,7 +1,6 @@
 package stream
 
 import (
-	"reflect"
 	"sync"
 	"time"
 )
@@ -20,7 +19,7 @@ type Projection[D Document] struct {
 
 	// OnEvents
 	// or Entities must be set
-	OnEvents func(Events) (D, error)
+	//OnEvents func(Events) (D, error)
 
 	// OnFilter
 	OnFilter Filter
@@ -29,7 +28,7 @@ type Projection[D Document] struct {
 	//OnEvent AppenderFunc
 
 	// OnBuild
-	//OnBuild Receiver
+	OnBuild Receiver
 
 	// BuildOnStart
 	BuildOnStart bool
@@ -40,7 +39,7 @@ type Projection[D Document] struct {
 	// Logger
 	Log Printer
 
-	Store Entities[D]
+	Documents Documents[D]
 
 	mu      sync.Mutex
 	blocked error
@@ -55,8 +54,8 @@ func (p *Projection[D]) init() error {
 		}
 	}
 
-	if p.OnEvents == nil && p.Store == nil {
-		return Err("%s projection requires Document CRUD implementation or OnEvents func", p.Name)
+	if p.Documents == nil {
+		return Err("%s Documents implementation required", p.Name)
 	}
 
 	if p.Log == nil {
@@ -109,31 +108,21 @@ func (p *Projection[D]) write(e Events) (err error) {
 	//}
 
 	var d D
-	if p.OnEvents != nil {
-		if d, err = p.OnEvents(e); err != nil {
+	switch d, err = p.Documents.Create(e); {
+	case err == ErrDocumentNotSupported:
+		return nil
+	case err != nil:
+		return err
+	}
+
+	for i := range e {
+		if err = d.Commit(e[i].body, e[i].createdAt); err != nil {
 			return err
 		}
 	}
 
-	if p.Store != nil {
-		d, err = p.Store.Create(e)
-		if err != nil || reflect.ValueOf(d).IsNil() { //todo i do now how to check generic D is nil
-			return err
-		}
-
-		if err = p.Store.One(d); err != nil && err != ErrDocumentNotFound {
-			return err
-		}
-
-		for i := range e {
-			if err = d.Commit(e[i].body, e[i].createdAt); err != nil {
-				return err
-			}
-		}
-
-		if err = p.Store.Update(d); err != nil {
-			return err
-		}
+	if err = p.Documents.Update(d); err != nil {
+		return err
 	}
 
 	return nil
@@ -255,3 +244,5 @@ func (p *Projection[D]) register(in *Domain) error {
 //
 //	return r.registered[name]
 //}
+
+type Receiver func(events Events) error

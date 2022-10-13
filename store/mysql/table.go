@@ -3,6 +3,7 @@ package mysql
 import (
 	. "github.com/sokool/stream"
 	"gorm.io/gorm"
+	"reflect"
 )
 
 type Table[E Entity] struct {
@@ -29,21 +30,24 @@ func NewTable[E Entity](c *Connection, fn EntityFunc[E]) (*Table[E], error) {
 }
 
 func (r *Table[E]) Create(e Events) (E, error) {
-	return r.create(e)
-}
-
-func (r *Table[E]) One(e E) error {
-	db := r.c.gdb.Table(r.name).Where("id = ?", e.ID()).First(e)
-	if err := db.Error; err != gorm.ErrRecordNotFound && err != nil {
-		return err
+	d, err := r.create(e)
+	if err != nil {
+		return d, err
 	}
 
-	return nil
+	if reflect.ValueOf(d).IsNil() {
+		return d, ErrDocumentNotSupported
+	}
+
+	if err = r.DB().Where("id = ?", d.ID()).First(&d).Error; err != gorm.ErrRecordNotFound && err != nil {
+		return d, err
+	}
+
+	return d, nil
 }
 
-func (r *Table[E]) Read(ee []E, bytes []byte) error {
-	//TODO implement me
-	panic("implement me")
+func (r *Table[E]) Read(query []byte) (ee []E, _ error) {
+	return ee, r.DB().Raw(string(query)).Scan(&ee).Error
 }
 
 func (r *Table[E]) Update(ee ...E) (err error) {
@@ -52,11 +56,11 @@ func (r *Table[E]) Update(ee ...E) (err error) {
 	}
 
 	if len(ee) == 1 {
-		return r.c.gdb.Table(r.name).Save(ee[0]).Error
+		return r.DB().Save(ee[0]).Error
 	}
 
 	var tx *gorm.DB
-	if tx = r.c.gdb.Table(r.name).Begin(); tx.Error != nil {
+	if tx = r.DB().Begin(); tx.Error != nil {
 		return tx.Error
 	}
 
@@ -81,11 +85,7 @@ func (r *Table[E]) Delete(ee ...E) error {
 }
 
 func (r *Table[E]) prepare(e E, drop bool) error {
-	db := r.c.gdb.
-		Set("CHARACTER", "utf8mb4,utf8").
-		Set("collation", "utf8mb4_unicode_ci").
-		Table(r.name)
-
+	db := r.DB().Set("CHARACTER", "utf8mb4,utf8").Set("collation", "utf8mb4_unicode_ci")
 	if drop {
 		if err := db.Migrator().DropTable(e); err != nil {
 			return err
@@ -93,4 +93,8 @@ func (r *Table[E]) prepare(e E, drop bool) error {
 	}
 
 	return db.AutoMigrate(e)
+}
+
+func (r *Table[E]) DB() *gorm.DB {
+	return r.c.gdb.Table(r.name)
 }

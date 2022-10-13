@@ -1,8 +1,8 @@
 package stream
 
 import (
-	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
 type Entity interface {
@@ -12,77 +12,68 @@ type Entity interface {
 
 type EntityFunc[E Entity] func(Events) (E, error)
 
-type Entities[E Entity] interface {
-	Create(Events) (E, error)
-	One(E) error // todo One(Events) (E, error)
-	Read([]E, []byte) error
+type Documents[E Entity] interface {
+	Create(Events) (E, error) // todo One(Events) (E, error)
+	Read([]byte) ([]E, error)
 	Update(...E) error
 	Delete(...E) error
 }
 
 // todo use https://github.com/hashicorp/go-memdb
-type entities[E Entity] struct {
+type documents[E Entity] struct {
 	create EntityFunc[E]
-	store  map[string][]byte
+	store  map[string]E
 }
 
-func NewEntities[E Entity](fn EntityFunc[E]) Entities[E] {
-	return &entities[E]{
-		store:  make(map[string][]byte),
+func NewDocuments[E Entity](fn EntityFunc[E]) Documents[E] {
+	return &documents[E]{
+		store:  make(map[string]E),
 		create: fn,
 	}
 }
 
-func (r *entities[E]) Create(e Events) (E, error) {
-	return r.create(e)
-}
+func (r *documents[E]) Create(e Events) (E, error) {
+	d, err := r.create(e)
+	if err != nil || reflect.ValueOf(d).IsNil() {
+		return d, err
+	}
 
-func (r *entities[E]) One(d E) error {
 	b, found := r.store[d.ID()]
 	if !found {
-		return ErrDocumentNotFound
+		return d, ErrDocumentNotSupported
 	}
 
-	return json.Unmarshal(b, &d)
+	return b, nil
 }
 
-func (r *entities[E]) Read(ee []E, bytes []byte) error {
-	var i int
+func (r *documents[E]) Read(bytes []byte) (ee []E, _ error) {
 	for _, body := range r.store {
-		if err := json.Unmarshal(body, &ee[i]); err != nil {
-			return err
-		}
-		i++
+		ee = append(ee, body)
 	}
-	return nil
+	return ee, nil
 }
 
-func (r *entities[E]) Update(e ...E) error {
+func (r *documents[E]) Update(e ...E) error {
 	for i := range e {
-		b, err := json.Marshal(e[i])
-		if err != nil {
-			return err
-		}
-
-		r.store[e[i].ID()] = b
+		r.store[e[i].ID()] = e[i]
 	}
 	return nil
 }
 
-func (r *entities[E]) Delete(e ...E) error {
+func (r *documents[E]) Delete(e ...E) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (r *entities[E]) Count() int {
+func (r *documents[E]) Count() int {
 	return len(r.store)
 }
 
-func (r *entities[E]) String() string {
+func (r *documents[E]) String() string {
 	var e E
 	var s = fmt.Sprintf("%T\n", e)
 	for i := range r.store {
-		s += fmt.Sprintf("%s\n", string(r.store[i]))
+		s += fmt.Sprintf("%v\n", r.store[i])
 	}
 	return s
 }

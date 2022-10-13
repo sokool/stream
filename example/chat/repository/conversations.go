@@ -20,7 +20,7 @@ func NewConversations() *Conversations {
 
 	return &Conversations{
 		Projection: &stream.Projection[*Conversation]{
-			Store: s,
+			Documents: s,
 		},
 	}
 }
