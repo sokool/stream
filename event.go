@@ -35,7 +35,7 @@ func NewEvent(id RootID, v any, sequence int64) (e Event, err error) {
 	}
 
 	return Event{
-		id:        uid(fmt.Sprintf("%s.%s.%d", id, e.typ, sequence)),
+		id:        ID(uid(fmt.Sprintf("%s.%s.%d", id, e.typ, sequence))),
 		root:      id,
 		typ:       t.CutPrefix(id.Type()),
 		sequence:  sequence,
@@ -114,24 +114,24 @@ func (e *Event) Decode(b []byte) error {
 
 type Events []Event
 
-func NewEvents(r Root) (ee Events, err error) {
-	var id RootID
-	var k = r.Version() + 1
-	if id, err = NewRootID(r); err != nil {
-		return nil, err
-	}
-
-	for i, v := range r.Uncommitted(true) {
-		var e Event
-		if e, err = NewEvent(id, v, k+int64(i)); err != nil {
-			return nil, err
-		}
-
-		ee = append(ee, e)
-	}
-
-	return ee, nil
-}
+//func NewEvents(r Root) (ee Events, err error) {
+//	var id RootID
+//	var k = r.Version() + 1
+//	if id, err = NewRootID(r); err != nil {
+//		return nil, err
+//	}
+//
+//	for i, v := range r.Uncommitted(true) {
+//		var e Event
+//		if e, err = NewEvent(id, v, k+int64(i)); err != nil {
+//			return nil, err
+//		}
+//
+//		ee = append(ee, e)
+//	}
+//
+//	return ee, nil
+//}
 
 // Unique gives RootID when all events has same RootID
 func (r Events) Unique() RootID {
@@ -170,10 +170,6 @@ func (r Events) hasUnique(id RootID) bool {
 	return true
 }
 
-func (r Events) Append(e Event) error {
-	return nil
-}
-
 func (r Events) String() string {
 	var s string
 	if id := r.Unique(); !id.IsZero() {
@@ -200,25 +196,27 @@ func (r Events) String() string {
 	return s
 }
 
-func (r Events) Extend(s Root) (err error) {
-	var id RootID
-	var e Event
-	var k = s.Version() + 1
-	if id, err = NewRootID(s); err != nil {
-		return err
+func (r Events) Append(s Root) (Events, error) {
+	id, err := NewRootID(s)
+	if err != nil {
+		return nil, err
 	}
 
+	k := s.Version() + 1
 	for i, v := range s.Uncommitted(true) {
-		if e, err = NewEvent(id, v, k+int64(i)); err != nil {
-			return err
+		e, err := NewEvent(id, v, k+int64(i))
+		if err != nil {
+			return nil, err
 		}
 
-		if err = r.Append(e); err != nil {
-			return err
+		if registry.get(e).isZero() {
+			return nil, Err("%s not found in registry", e)
 		}
+
+		r = append(r, e)
 	}
 
-	return nil
+	return r, nil
 }
 
 func (r Events) Size() int {
@@ -236,4 +234,11 @@ func (r Events) Last() Event {
 
 	return Event{}
 
+}
+
+func (r Events) Hash() string {
+	if r.IsZero() {
+		return ""
+	}
+	return uid(r.String())
 }

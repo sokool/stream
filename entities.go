@@ -14,7 +14,7 @@ type EntityFunc[E Entity] func(Events) (E, error)
 
 type Entities[E Entity] interface {
 	Create(Events) (E, error)
-	One(E) error
+	One(E) error // todo One(Events) (E, error)
 	Read([]E, []byte) error
 	Update(...E) error
 	Delete(...E) error

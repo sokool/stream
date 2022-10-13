@@ -2,24 +2,27 @@ package stream_test
 
 import (
 	"fmt"
+	"github.com/icrowley/fake"
 	"github.com/sokool/stream"
 	"github.com/sokool/stream/example/chat/model"
 	"github.com/sokool/stream/example/chat/repository"
 	"github.com/sokool/stream/store/mysql"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
 
 func TestAggregates(t *testing.T) {
-	id, chats := "73HdaUj", repository.NewChats()
+	d := NewDomain(t)
+	id, ch, chats := fake.CharactersN(6), "#"+strings.ReplaceAll(strings.ToLower(fake.Street()), " ", "-"), repository.NewChats()
 
-	if err := chats.Register(NewDomain(t)); err != nil {
+	if err := chats.Register(d); err != nil {
 		t.Fatal(err)
 	}
 
 	type Thread = model.Thread
-	if err := chats.Thread(id, func(t *Thread) error { return t.Start("#fire-up", "tom@on.de") }); err != nil {
+	if err := chats.Thread(id, func(t *Thread) error { return t.Start(ch, "tom@on.de") }); err != nil {
 		t.Fatal(err)
 	}
 
@@ -55,7 +58,7 @@ func NewDomain(t *testing.T) *stream.Domain {
 	return stream.NewDomain(&stream.Configuration{
 		Name: "MyCoolTestDomain",
 		EventStore: func(l stream.Printer) stream.EventStore {
-			host := os.Getenv("MYSQL_EVENT_STOREs")
+			host := os.Getenv("MYSQL_EVENT_STORE")
 			if host == "" {
 				return stream.NewEventStore()
 			}

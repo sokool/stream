@@ -3,67 +3,23 @@ package repository
 import (
 	"github.com/sokool/stream"
 	"github.com/sokool/stream/example/chat/model"
+	"github.com/sokool/stream/store/mysql"
+	"math/rand"
+	"os"
+	"time"
 )
 
 type Chats struct {
-	Threads  *stream.Aggregate[*model.Thread]
-	Members  *stream.Projection[*Member]
-	Messages *stream.Projection[*Messages]
+	*Threads
+	*Members
+	*Conversations
 }
 
 func NewChats() *Chats {
-	var m, _ = stream.NewType("Messages")
-	var n, _ = stream.NewType("Members")
 	return &Chats{
-		Threads: &stream.Aggregate[*model.Thread]{
-			Description: "",
-			OnCreate: func(id string) (*model.Thread, error) {
-				t, err := model.NewThread(id)
-				//fmt.Println("on.create", t)
-				return t, err
-			},
-			OnLoad: func(t *model.Thread) error {
-				//fmt.Println("on.load", t)
-				return nil
-			},
-			OnCommit: func(t *model.Thread, e stream.Events) error {
-				//fmt.Println("on.commit", t, len(e))
-				return nil
-			},
-			OnSave: func(t *model.Thread) error {
-				//fmt.Println("on.save", t)
-				return nil
-			},
-			Events: stream.Schemas{
-				model.ThreadStarted{}: {
-					Description: "thread starts automatically, when there is a longer break between messages",
-					//Transaction: m,
-				},
-				model.ThreadMessage{}: {
-					//Transaction: m,
-				},
-				model.ThreadJoined{}: {
-					//Transaction: m,
-				},
-				model.ThreadLeft{}: {
-					//Transaction: m,
-				},
-				model.ThreadKicked{}: {},
-				model.ThreadMuted{}:  {},
-				model.ThreadKicked{}: {},
-			},
-			OnCacheCleanup:     nil,
-			CleanCacheAfter:    -1,
-			LoadEventsInChunks: 8,
-		},
-		Members: &stream.Projection[*Member]{
-			Name:  n,
-			Store: NewMembers(),
-		},
-		Messages: &stream.Projection[*Messages]{
-			Name:  m,
-			Store: NewMessagez(),
-		},
+		Threads:       NewThreads(),
+		Members:       NewMembers(),
+		Conversations: NewConversations(),
 	}
 }
 
@@ -71,6 +27,32 @@ func (t *Chats) Thread(id string, command func(*model.Thread) error) error {
 	return t.Threads.Execute(id, command)
 }
 
-func (t *Chats) Register(s *stream.Domain) error {
-	return s.Register(t.Threads, t.Messages, t.Members)
+func (t *Chats) Register(d *stream.Domain) error {
+	return d.Register(t.Threads, t.Conversations, t.Members)
+}
+
+func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.Entities[E], error) {
+	if cdn := os.Getenv("MYSQL_EVENT_STORE"); cdn != "" {
+		c, err := mysql.NewConnection(cdn, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		m, err := mysql.NewTable[E](c, fn)
+		if err != nil {
+			return nil, err
+		}
+
+		return m, nil
+	}
+
+	return stream.NewEntities[E](fn), nil
+}
+
+func delay(x time.Duration) {
+	max := int64(x)
+	min := int64(time.Millisecond * 100)
+	t := time.Duration(rand.Int63n(max-min) + min)
+
+	time.Sleep(t)
 }
