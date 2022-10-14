@@ -17,10 +17,6 @@ type Projection[D Document] struct {
 	// Description
 	Description string
 
-	// OnEvents
-	// or Entities must be set
-	//OnEvents func(Events) (D, error)
-
 	// OnFilter
 	OnFilter Filter
 
