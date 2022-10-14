@@ -8,23 +8,6 @@ import (
 	"time"
 )
 
-type Conversations struct {
-	*stream.Projection[*Conversation]
-}
-
-func NewConversations() *Conversations {
-	s, err := storage[*Conversation](NewConversation)
-	if err != nil {
-		panic(err)
-	}
-
-	return &Conversations{
-		Projection: &stream.Projection[*Conversation]{
-			Documents: s,
-		},
-	}
-}
-
 type Conversation struct {
 	Id         string
 	Channel    string
@@ -34,13 +17,13 @@ type Conversation struct {
 	Ver        int64
 }
 
-func NewConversation(m stream.Events) (*Conversation, error) {
-	id := m.Unique()
-	if id.IsZero() {
-		return nil, nil
+func NewConversation(ee stream.Events) ([]*Conversation, error) {
+	var cc []*Conversation
+	for _, e := range ee {
+		cc = append(cc, &Conversation{Id: e.Root().Hash()})
 	}
 
-	return &Conversation{Id: id.Hash()}, nil
+	return cc, nil
 }
 
 func (c *Conversation) ID() string { return c.Id }
@@ -88,4 +71,17 @@ func (c *Conversation) String() string {
 		c.Channel, c.ID, len(c.Text))
 
 	return s
+}
+
+type Conversations struct {
+	stream.Documents[*Conversation]
+}
+
+func NewConversations() *Conversations {
+	s, err := storage[*Conversation](NewConversation)
+	if err != nil {
+		panic(err)
+	}
+
+	return &Conversations{s}
 }

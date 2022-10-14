@@ -10,9 +10,9 @@ import (
 )
 
 type Chats struct {
-	*Threads
-	*Members
-	*Conversations
+	Threads       *Threads
+	Members       *Members
+	Conversations *Conversations
 }
 
 func NewChats() *Chats {
@@ -28,7 +28,18 @@ func (t *Chats) Thread(id string, command func(*model.Thread) error) error {
 }
 
 func (t *Chats) Register(d *stream.Domain) error {
-	return d.Register(t.Threads, t.Conversations, t.Members)
+
+	c := []stream.Component{
+		t.Threads,
+		&stream.Projection[*Member]{
+			Documents: t.Members,
+		},
+		&stream.Projection[*Conversation]{
+			Documents: t.Conversations,
+		},
+	}
+
+	return d.Register(c...)
 }
 
 func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.Documents[E], error) {

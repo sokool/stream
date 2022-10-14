@@ -12,11 +12,11 @@ func TestDocuments_Load(t *testing.T) {
 	m1 := repository.Member{Id: "Albert", Avatar: "elo.gif", Seq: 1, JoinedAt: time.Now()}
 	m2 := repository.Member{Id: "Greg", Avatar: "greg.jpg", Seq: 1, JoinedAt: time.Now()}
 
-	if err := chats.Members.Documents.Update(&m1); err != nil {
+	if err := chats.Members.Update(&m1); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := chats.Members.Documents.Update(&m2); err != nil {
+	if err := chats.Members.Update(&m2); err != nil {
 		t.Fatal(err)
 	}
 

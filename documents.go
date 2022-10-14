@@ -2,7 +2,6 @@ package stream
 
 import (
 	"fmt"
-	"reflect"
 )
 
 type Entity interface {
@@ -10,13 +9,14 @@ type Entity interface {
 	Version() int64
 }
 
-type EntityFunc[E Entity] func(Events) (E, error)
+type EntityFunc[E Entity] func(Events) ([]E, error)
 
 type Documents[E Entity] interface {
-	Create(Events) (E, error) // todo One(Events) (E, error)
+	Create(Events) ([]E, error)
 	Read([]byte) ([]E, error)
 	Update(...E) error
 	Delete(...E) error
+	Build(<-chan Events) error
 }
 
 // todo use https://github.com/hashicorp/go-memdb
@@ -32,18 +32,13 @@ func NewDocuments[E Entity](fn EntityFunc[E]) Documents[E] {
 	}
 }
 
-func (r *documents[E]) Create(e Events) (E, error) {
+func (r *documents[E]) Create(e Events) ([]E, error) {
 	d, err := r.create(e)
-	if err != nil || reflect.ValueOf(d).IsNil() {
+	if err != nil || d == nil {
 		return d, err
 	}
 
-	b, found := r.store[d.ID()]
-	if !found {
-		return d, ErrDocumentNotSupported
-	}
-
-	return b, nil
+	return d, nil
 }
 
 func (r *documents[E]) Read(bytes []byte) (ee []E, _ error) {
@@ -61,6 +56,11 @@ func (r *documents[E]) Update(e ...E) error {
 }
 
 func (r *documents[E]) Delete(e ...E) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r *documents[E]) Build(events <-chan Events) error {
 	//TODO implement me
 	panic("implement me")
 }

@@ -103,25 +103,20 @@ func (p *Projection[D]) write(e Events) (err error) {
 	//}
 	//}
 
-	var d D
-	switch d, err = p.Documents.Create(e); {
-	case err == ErrDocumentNotSupported:
-		return nil
-	case err != nil:
+	d, err := p.Documents.Create(e)
+	if err != nil {
 		return err
 	}
 
-	for i := range e {
-		if err = d.Commit(e[i].body, e[i].createdAt); err != nil {
-			return err
+	for i := range d {
+		for k := range e {
+			if err = d[i].Commit(e[k].body, e[k].createdAt); err != nil {
+				return err
+			}
 		}
 	}
 
-	if err = p.Documents.Update(d); err != nil {
-		return err
-	}
-
-	return nil
+	return p.Documents.Update(d...)
 }
 
 func (p *Projection[D]) log(m string, a ...interface{}) {

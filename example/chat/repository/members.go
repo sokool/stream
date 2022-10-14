@@ -8,7 +8,7 @@ import (
 )
 
 type Member struct {
-	Id       model.Member
+	Id       string
 	Avatar   string
 	MutedDue string
 	JoinedAt time.Time `gorm:"type:string;serializer:json"`
@@ -16,21 +16,26 @@ type Member struct {
 	Seq      int64
 }
 
-func NewMember(se stream.Events) (*Member, error) {
+func NewMember(se stream.Events) ([]*Member, error) {
+	var mm []*Member
 	for i := range se {
+		var id string
 		switch e := se[i].Body().(type) {
 		case model.ThreadJoined:
-			return &Member{Id: e.Participant}, nil
+			id = string(e.Participant)
 
 		case model.ThreadLeft:
-			return &Member{Id: e.Participant}, nil
+			id = string(e.Participant)
 
 		case model.ThreadKicked:
-			return &Member{Id: e.Participant}, nil
+			id = string(e.Participant)
 
 		case model.ThreadMuted:
-			return &Member{Id: e.Participant}, nil
+			id = string(e.Participant)
+		default:
+			continue
 		}
+		mm = append(mm, &Member{Id: id})
 	}
 	return nil, nil
 }
@@ -46,17 +51,16 @@ func (a *Member) Version() int64 {
 func (a *Member) Commit(event any, createdAt time.Time) error {
 	switch e := event.(type) {
 	case model.ThreadJoined:
-		a.Id, a.JoinedAt = e.Participant, createdAt
+		a.Id, a.JoinedAt = string(e.Participant), createdAt
 
 	case model.ThreadLeft:
-		a.Id, a.LeftAt = e.Participant, createdAt
+		a.Id, a.LeftAt = string(e.Participant), createdAt
 
 	case model.ThreadKicked:
-		a.Id, a.LeftAt = e.Participant, createdAt
+		a.Id, a.LeftAt = string(e.Participant), createdAt
 
 	case model.ThreadMuted:
-		a.Id, a.MutedDue = e.Participant, e.Reason
-
+		a.Id, a.MutedDue = string(e.Participant), e.Reason
 	}
 
 	a.Seq++
@@ -71,7 +75,7 @@ func (a *Member) String() string {
 }
 
 type Members struct {
-	*stream.Projection[*Member]
+	stream.Documents[*Member]
 }
 
 func NewMembers() *Members {
@@ -80,11 +84,12 @@ func NewMembers() *Members {
 		panic(err)
 	}
 
-	return &Members{
-		Projection: &stream.Projection[*Member]{
-			Documents: s,
-		},
-	}
+	return &Members{s}
+}
+
+func (m *Members) Build(events <-chan stream.Events) error {
+	//TODO implement me
+	panic("implement me")
 }
 
 func (m *Members) Recent() ([]*Member, error) {

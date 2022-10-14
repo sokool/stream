@@ -3,7 +3,6 @@ package mysql
 import (
 	. "github.com/sokool/stream"
 	"gorm.io/gorm"
-	"reflect"
 )
 
 type Table[E Entity] struct {
@@ -29,18 +28,16 @@ func NewTable[E Entity](c *Connection, fn EntityFunc[E]) (*Table[E], error) {
 	return d, d.prepare(e, false)
 }
 
-func (r *Table[E]) Create(e Events) (E, error) {
+func (r *Table[E]) Create(e Events) ([]E, error) {
 	d, err := r.create(e)
-	if err != nil {
+	if err != nil || d == nil {
 		return d, err
 	}
 
-	if reflect.ValueOf(d).IsNil() {
-		return d, ErrDocumentNotSupported
-	}
-
-	if err = r.DB().Where("id = ?", d.ID()).First(&d).Error; err != gorm.ErrRecordNotFound && err != nil {
-		return d, err
+	for i := range d {
+		if err = r.DB().Where("id = ?", d[i].ID()).First(&d[i]).Error; err != gorm.ErrRecordNotFound && err != nil {
+			return nil, err
+		}
 	}
 
 	return d, nil
@@ -82,6 +79,19 @@ func (r *Table[E]) Update(ee ...E) (err error) {
 func (r *Table[E]) Delete(ee ...E) error {
 	//return r.c.gdb.Table(r.name).Model(r.model).Where("id = ?", id).Delete(c.model).Error
 	panic("implement")
+}
+
+func (r *Table[E]) Build(c <-chan Events) error {
+	for range c {
+		return Err("mysql.Table.Build needs implementation")
+		//d, err := r.create(e)
+		//if err != nil {
+		//	return err
+		//}
+	}
+
+	//TODO implement me
+	return nil
 }
 
 func (r *Table[E]) prepare(e E, drop bool) error {
