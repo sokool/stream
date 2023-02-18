@@ -54,8 +54,8 @@ func TestAggregates(t *testing.T) {
 	time.Sleep(time.Second * 7)
 }
 
-func NewDomain(t *testing.T) *stream.Domain {
-	return stream.NewDomain(&stream.Configuration{
+func NewDomain(t *testing.T) *stream.Service {
+	return stream.New(&stream.Configuration{
 		Name: "MyCoolTestDomain",
 		EventStore: func(l stream.Printer) stream.EventStore {
 			host := os.Getenv("MYSQL_EVENT_STORE")

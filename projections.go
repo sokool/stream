@@ -147,7 +147,7 @@ func (p *Projection[D]) log(m string, a ...interface{}) {
 	p.Log(m, a...)
 }
 
-func (p *Projection[D]) register(in *Domain) error {
+func (p *Projection[D]) register(in *Service) error {
 	if err := p.init(); err != nil {
 		return err
 	}
