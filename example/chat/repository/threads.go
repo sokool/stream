@@ -6,12 +6,12 @@ import (
 )
 
 type Threads struct {
-	*stream.Aggregate[*model.Thread]
+	*stream.Aggregates[*model.Thread]
 }
 
 func NewThreads() *Threads {
 	return &Threads{
-		&stream.Aggregate[*model.Thread]{
+		&stream.Aggregates[*model.Thread]{
 			Description: "",
 			OnCreate: func(id string) (*model.Thread, error) {
 				t, err := model.NewThread(id)

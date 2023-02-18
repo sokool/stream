@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// Aggregate is todo :)
-type Aggregate[R Root] struct {
+// Aggregates is todo :)
+type Aggregates[R Root] struct {
 	// Type ...
 	Type Type
 
@@ -58,14 +58,14 @@ type Aggregate[R Root] struct {
 	// Logger
 	Log Printer
 
-	// memory keeps created Changelog of Aggregate in order to avoid rebuilding
-	// state of each Aggregate everytime when Thread is called
+	// memory keeps created Changelog of Aggregates in order to avoid rebuilding
+	// state of each Aggregates everytime when Thread is called
 	memory *Cache[string, R]
 	mu     sync.Mutex
 }
 
 // todo recover panic
-func (a *Aggregate[R]) Execute(id string, command RootFunc[R]) error {
+func (a *Aggregates[R]) Execute(id string, command RootFunc[R]) error {
 	for {
 		r, err := a.Get(id)
 		if err != nil {
@@ -88,7 +88,7 @@ func (a *Aggregate[R]) Execute(id string, command RootFunc[R]) error {
 	}
 }
 
-func (a *Aggregate[R]) Get(id string) (R, error) {
+func (a *Aggregates[R]) Get(id string) (R, error) {
 	var found bool
 	var d RootID
 	var r R
@@ -135,7 +135,7 @@ func (a *Aggregate[R]) Get(id string) (R, error) {
 	}
 }
 
-func (a *Aggregate[R]) Set(r R) error {
+func (a *Aggregates[R]) Set(r R) error {
 	if err := a.init(); err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func (a *Aggregate[R]) Set(r R) error {
 	return a.memory.Set(r.ID(), r)
 }
 
-func (a *Aggregate[R]) commit(r R, e []Event) error {
+func (a *Aggregates[R]) commit(r R, e []Event) error {
 	if len(e) == 0 {
 		return nil
 	}
@@ -204,7 +204,7 @@ func (a *Aggregate[R]) commit(r R, e []Event) error {
 	return nil
 }
 
-func (a *Aggregate[R]) init() (err error) {
+func (a *Aggregates[R]) init() (err error) {
 	if a.Type.IsZero() {
 		var r R
 		if a.Type, err = NewType(r); err != nil {
@@ -227,7 +227,7 @@ func (a *Aggregate[R]) init() (err error) {
 	return nil
 }
 
-func (a *Aggregate[R]) String() string {
+func (a *Aggregates[R]) String() string {
 	if a.Store == nil {
 		return ""
 	}
@@ -240,7 +240,7 @@ func (a *Aggregate[R]) String() string {
 	return e.String()
 }
 
-func (a *Aggregate[R]) Register(in *Service) (err error) {
+func (a *Aggregates[R]) Register(in *Service) (err error) {
 	if err = a.init(); err != nil {
 		return err
 	}
