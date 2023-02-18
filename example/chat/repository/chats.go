@@ -27,7 +27,7 @@ func (t *Chats) Thread(id string, command func(*model.Thread) error) error {
 	return t.Threads.Execute(id, command)
 }
 
-func (t *Chats) Register(d *stream.Domain) error {
+func (t *Chats) Register(d *stream.Service) error {
 	return d.Register(t.Threads, t.Conversations, t.Members)
 }
 
