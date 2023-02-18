@@ -240,7 +240,7 @@ func (a *Aggregate[R]) String() string {
 	return e.String()
 }
 
-func (a *Aggregate[R]) register(in *Service) (err error) {
+func (a *Aggregate[R]) Register(in *Service) (err error) {
 	if err = a.init(); err != nil {
 		return err
 	}
