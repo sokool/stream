@@ -27,8 +27,8 @@ func (t *Chats) Thread(id string, command func(*model.Thread) error) error {
 	return t.Threads.Execute(id, command)
 }
 
-func (t *Chats) Register(d *stream.Service) error {
-	return d.Register(t.Threads, t.Conversations, t.Members)
+func (t *Chats) Compose(d *stream.Service) error {
+	return d.Compose(t.Threads, t.Conversations, t.Members)
 }
 
 func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.Entities[E], error) {

@@ -6,7 +6,7 @@ import (
 )
 
 type Component interface {
-	Register(*Service) error
+	Compose(*Service) error
 }
 
 type Configuration struct {
@@ -47,12 +47,12 @@ func New(c *Configuration) *Service {
 	return &s
 }
 
-func (s *Service) Register(c ...Component) error {
+func (s *Service) Compose(c ...Component) error {
 	//s.mu.Lock()
 	//defer s.mu.Unlock()
 
 	for i := range c {
-		if err := c[i].Register(s); err != nil {
+		if err := c[i].Compose(s); err != nil {
 			return err
 		}
 	}

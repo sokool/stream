@@ -17,7 +17,7 @@ func TestAggregates(t *testing.T) {
 	d := NewDomain(t)
 	id, ch, chats := fake.CharactersN(6), "#"+strings.ReplaceAll(strings.ToLower(fake.Street()), " ", "-"), repository.NewChats()
 
-	if err := chats.Register(d); err != nil {
+	if err := d.Compose(chats); err != nil {
 		t.Fatal(err)
 	}
 

@@ -11,7 +11,7 @@ type Document interface {
 	Committer
 }
 
-type Projection[D Document] struct {
+type Projections[D Document] struct {
 	// Name is unique identifier of events handler
 	Name Type
 
@@ -46,7 +46,7 @@ type Projection[D Document] struct {
 	blocked error
 }
 
-func (p *Projection[D]) init() error {
+func (p *Projections[D]) init() error {
 	if p.Name.IsZero() {
 		var v D
 		var err error
@@ -67,7 +67,7 @@ func (p *Projection[D]) init() error {
 	return nil
 }
 
-func (p *Projection[D]) Write(e Events) (n int, err error) {
+func (p *Projections[D]) Write(e Events) (n int, err error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -94,7 +94,7 @@ func (p *Projection[D]) Write(e Events) (n int, err error) {
 	return n, p.write(e)
 }
 
-func (p *Projection[D]) write(e Events) (err error) {
+func (p *Projections[D]) write(e Events) (err error) {
 	//if e, err = e.Shrink(h.OnFilter); err != nil {
 	//	return 0, err
 	//}
@@ -139,7 +139,7 @@ func (p *Projection[D]) write(e Events) (err error) {
 	return nil
 }
 
-func (p *Projection[D]) log(m string, a ...interface{}) {
+func (p *Projections[D]) log(m string, a ...interface{}) {
 	if p.Log == nil {
 		return
 	}
@@ -147,7 +147,7 @@ func (p *Projection[D]) log(m string, a ...interface{}) {
 	p.Log(m, a...)
 }
 
-func (p *Projection[D]) Register(in *Service) error {
+func (p *Projections[D]) Compose(in *Service) error {
 	if err := p.init(); err != nil {
 		return err
 	}
@@ -155,7 +155,7 @@ func (p *Projection[D]) Register(in *Service) error {
 	return in.register(p, p.Name)
 }
 
-//func (h *Projection[D]) query() Query {
+//func (h *Projections[D]) query() Query {
 //	if q, ok := h.OnFilter.(*Query); ok {
 //		return *q
 //	}
@@ -171,7 +171,7 @@ func (p *Projection[D]) Register(in *Service) error {
 //	mu         sync.Mutex
 //	store      EventStore
 //	schemas    *Schemas
-//	registered map[string]*Projection
+//	registered map[string]*Projections
 //	log        Logger
 //	w          Writer //todo it support old projections
 //}
@@ -182,7 +182,7 @@ func (p *Projection[D]) Register(in *Service) error {
 //		schemas:    s,
 //		log:        l,
 //		w:          w,
-//		registered: map[string]*Projection{},
+//		registered: map[string]*Projections{},
 //	}
 //}
 //
@@ -209,7 +209,7 @@ func (p *Projection[D]) Register(in *Service) error {
 //	return len(m), nil
 //}
 //
-//func (r *Handlers) Register(h ...*Projection) error {
+//func (r *Handlers) Register(h ...*Projections) error {
 //	r.mu.Lock()
 //	defer r.mu.Unlock()
 //
@@ -249,7 +249,7 @@ func (p *Projection[D]) Register(in *Service) error {
 //	return nil
 //}
 //
-//func (r *Handlers) Get(name string) *Projection {
+//func (r *Handlers) Get(name string) *Projections {
 //	r.mu.Lock()
 //	defer r.mu.Unlock()
 //

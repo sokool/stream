@@ -22,13 +22,13 @@ type Aggregates[R Root] struct {
 	//OnSession func(R) (Session, error)
 
 	// OnLoad when all events are committed to R and state is rebuild from all previously persisted Event
-	OnLoad RootFunc[R]
+	OnLoad Command[R]
 
 	// OnRecall
 	//OnRecall func(Session, R) error
 
 	// OnSave called just after events are persisted to database
-	OnSave RootFunc[R]
+	OnSave Command[R]
 
 	// OnCommit when new events are committed to a Root
 	OnCommit func(R, Events) error // todo not able to deny it (error)
@@ -37,7 +37,7 @@ type Aggregates[R Root] struct {
 	OnRecall func(R) time.Time
 
 	// OnCacheCleanup when aggregate is removed from memory
-	OnCacheCleanup RootFunc[R]
+	OnCacheCleanup Command[R]
 
 	// Events
 	Events Schemas
@@ -65,7 +65,7 @@ type Aggregates[R Root] struct {
 }
 
 // todo recover panic
-func (a *Aggregates[R]) Execute(id string, command RootFunc[R]) error {
+func (a *Aggregates[R]) Execute(id string, command Command[R]) error {
 	for {
 		r, err := a.Get(id)
 		if err != nil {
@@ -240,13 +240,13 @@ func (a *Aggregates[R]) String() string {
 	return e.String()
 }
 
-func (a *Aggregates[R]) Register(in *Service) (err error) {
+func (a *Aggregates[R]) Compose(with *Service) (err error) {
 	if err = a.init(); err != nil {
 		return err
 	}
 
 	if _, ok := a.Store.(*store); ok {
-		a.Store = in.store
+		a.Store = with.store
 	}
 
 	if err = registry.merge(a.Events, a.Type); err != nil {
@@ -254,15 +254,15 @@ func (a *Aggregates[R]) Register(in *Service) (err error) {
 	}
 
 	if a.Log == nil {
-		a.Log = in.logger(a.Type)
+		a.Log = with.logger(a.Type)
 	}
 
 	if a.Writer != nil {
-		if err = in.register(a.Writer, a.Type); err != nil {
+		if err = with.register(a.Writer, a.Type); err != nil {
 			return err
 		}
 	}
-	a.Writer = in
+	a.Writer = with
 	return nil
 }
 

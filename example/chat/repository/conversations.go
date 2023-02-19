@@ -9,7 +9,7 @@ import (
 )
 
 type Conversations struct {
-	*stream.Projection[*Conversation]
+	*stream.Projections[*Conversation]
 }
 
 func NewConversations() *Conversations {
@@ -19,7 +19,7 @@ func NewConversations() *Conversations {
 	}
 
 	return &Conversations{
-		Projection: &stream.Projection[*Conversation]{
+		Projections: &stream.Projections[*Conversation]{
 			Store: s,
 		},
 	}

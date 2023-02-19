@@ -71,7 +71,7 @@ func (a *Member) String() string {
 }
 
 type Members struct {
-	*stream.Projection[*Member]
+	*stream.Projections[*Member]
 }
 
 func NewMembers() *Members {
@@ -81,7 +81,7 @@ func NewMembers() *Members {
 	}
 
 	return &Members{
-		Projection: &stream.Projection[*Member]{
+		Projections: &stream.Projections[*Member]{
 			Store: s,
 		},
 	}
