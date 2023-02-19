@@ -152,7 +152,11 @@ func (p *Projections[D]) Compose(in *Service) error {
 		return err
 	}
 
-	return in.register(p, p.Name)
+	if err := in.register(p, p.Name); err != nil {
+		return err
+	}
+	p.Log("projection composed")
+	return nil
 }
 
 //func (h *Projections[D]) query() Query {

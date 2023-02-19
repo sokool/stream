@@ -136,6 +136,7 @@ func (a *Aggregates[R]) Get(id string) (R, error) {
 }
 
 func (a *Aggregates[R]) Set(r R) error {
+	s := time.Now()
 	if err := a.init(); err != nil {
 		return err
 	}
@@ -163,6 +164,8 @@ func (a *Aggregates[R]) Set(r R) error {
 	if err = a.commit(r, events); err != nil {
 		return err
 	}
+
+	a.Log("dbg %s stored in %s", events, time.Since(s))
 
 	if a.Writer != nil {
 		if _, err = a.Writer.Write(events); err != nil {
@@ -263,6 +266,7 @@ func (a *Aggregates[R]) Compose(with *Service) (err error) {
 		}
 	}
 	a.Writer = with
+	a.Log("aggregate composed")
 	return nil
 }
 
