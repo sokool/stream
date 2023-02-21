@@ -8,7 +8,7 @@ import (
 )
 
 type Member struct {
-	Id       model.Member
+	Id       model.MemberID
 	Avatar   string
 	MutedDue string
 	JoinedAt time.Time `gorm:"type:string;serializer:json"`

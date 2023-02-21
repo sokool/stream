@@ -1,7 +1,6 @@
 package stream_test
 
 import (
-	"fmt"
 	"github.com/icrowley/fake"
 	"github.com/sokool/stream"
 	"github.com/sokool/stream/example/chat/model"
@@ -14,7 +13,7 @@ import (
 )
 
 func TestAggregates(t *testing.T) {
-	d := NewDomain(t)
+	d := NewEngine(t)
 	id, ch, chats := fake.CharactersN(6), "#"+strings.ReplaceAll(strings.ToLower(fake.Street()), " ", "-"), repository.NewChats()
 
 	if err := d.Compose(chats); err != nil {
@@ -22,39 +21,38 @@ func TestAggregates(t *testing.T) {
 	}
 
 	type Thread = model.Thread
-	if err := chats.Thread(id, func(t *Thread) error { return t.Start(ch, "tom@on.de") }); err != nil {
+	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Start(ch, "tom@on.de") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := chats.Thread(id, func(t *Thread) error { return t.Message("tom@on.de", "hi there") }); err != nil {
+	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Message("tom@on.de", "hi there") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := chats.Thread(id, func(t *Thread) error { return t.Join("greg@gog.pl") }); err != nil {
+	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Join("greg@gog.pl") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := chats.Thread(id, func(t *Thread) error { return t.Message("greg@gog.pl", "crusher!") }); err != nil {
+	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Message("greg@gog.pl", "crusher!") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := chats.Thread(id, func(t *Thread) error { return t.Join("mark@gog.pl") }); err != nil {
+	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Join("mark@gog.pl") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := chats.Thread(id, func(t *Thread) error { return t.Message("tom@on.de", "fine, thx!") }); err != nil {
+	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Message("tom@on.de", "fine, thx!") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := chats.Thread(id, func(t *Thread) error { return t.Leave("tom@on.de") }); err != nil {
+	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Leave("tom@on.de") }); err != nil {
 		t.Fatal(err)
 	}
 
-	fmt.Println("done")
 	time.Sleep(time.Second * 7)
 }
 
-func NewDomain(t *testing.T) *stream.Service {
+func NewEngine(t *testing.T) *stream.Engine {
 	return stream.New(&stream.Configuration{
 		Name: "MyCoolTestDomain",
 		EventStore: func(l stream.Printer) stream.EventStore {

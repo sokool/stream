@@ -6,7 +6,7 @@ import (
 )
 
 type Component interface {
-	Compose(*Service) error
+	Compose(*Engine) error
 }
 
 type Configuration struct {
@@ -18,7 +18,7 @@ type Configuration struct {
 	EventStore func(Printer) EventStore // todo func not needed
 }
 
-type Service struct {
+type Engine struct {
 	name    Type
 	store   EventStore
 	logger  Logger
@@ -27,8 +27,8 @@ type Service struct {
 	mu      sync.RWMutex
 }
 
-func New(c *Configuration) *Service {
-	s := Service{
+func New(c *Configuration) *Engine {
+	s := Engine{
 		name:    c.Name,
 		store:   NewEventStore(),
 		logger:  NewLogger(os.Stdout, "stream", true).WithTag,
@@ -47,7 +47,7 @@ func New(c *Configuration) *Service {
 	return &s
 }
 
-func (s *Service) Compose(c ...Component) error {
+func (s *Engine) Compose(c ...Component) error {
 	//s.mu.Lock()
 	//defer s.mu.Unlock()
 
@@ -59,7 +59,7 @@ func (s *Service) Compose(c ...Component) error {
 	return nil
 }
 
-func (s *Service) Write(e Events) (n int, err error) {
+func (s *Engine) Write(e Events) (n int, err error) {
 	var swg sync.WaitGroup
 	var che = make(chan error, len(s.writers))
 
@@ -95,7 +95,7 @@ func (s *Service) Write(e Events) (n int, err error) {
 	return len(e), <-che
 }
 
-func (s *Service) register(w Writer, t Type) error {
+func (s *Engine) register(w Writer, t Type) error {
 	if _, ok := s.writers[t]; ok {
 		return Err("%s already registered", t)
 	}
@@ -104,4 +104,4 @@ func (s *Service) register(w Writer, t Type) error {
 	return nil
 }
 
-func (s *Service) Run() {}
+func (s *Engine) Run() {}

@@ -243,7 +243,7 @@ func (a *Aggregates[R]) String() string {
 	return e.String()
 }
 
-func (a *Aggregates[R]) Compose(with *Service) (err error) {
+func (a *Aggregates[R]) Compose(with *Engine) (err error) {
 	if err = a.init(); err != nil {
 		return err
 	}

@@ -2,7 +2,6 @@ package repository
 
 import (
 	"github.com/sokool/stream"
-	"github.com/sokool/stream/example/chat/model"
 	"github.com/sokool/stream/store/mysql"
 	"math/rand"
 	"os"
@@ -10,9 +9,9 @@ import (
 )
 
 type Chats struct {
-	*Threads
-	*Members
-	*Conversations
+	Threads       *Threads
+	Members       *Members
+	Conversations *Conversations
 }
 
 func NewChats() *Chats {
@@ -23,11 +22,7 @@ func NewChats() *Chats {
 	}
 }
 
-func (t *Chats) Thread(id string, command func(*model.Thread) error) error {
-	return t.Threads.Execute(id, command)
-}
-
-func (t *Chats) Compose(d *stream.Service) error {
+func (t *Chats) Compose(d *stream.Engine) error {
 	return d.Compose(t.Threads, t.Conversations, t.Members)
 }
 

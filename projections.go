@@ -147,7 +147,7 @@ func (p *Projections[D]) log(m string, a ...interface{}) {
 	p.Log(m, a...)
 }
 
-func (p *Projections[D]) Compose(in *Service) error {
+func (p *Projections[D]) Compose(in *Engine) error {
 	if err := p.init(); err != nil {
 		return err
 	}
