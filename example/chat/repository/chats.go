@@ -2,7 +2,6 @@ package repository
 
 import (
 	"github.com/sokool/stream"
-	"github.com/sokool/stream/example/chat/model"
 	"github.com/sokool/stream/store/mysql"
 	"math/rand"
 	"os"
@@ -23,26 +22,11 @@ func NewChats() *Chats {
 	}
 }
 
-func (t *Chats) Thread(id string, command func(*model.Thread) error) error {
-	return t.Threads.Execute(id, command)
+func (t *Chats) Compose(d *stream.Engine) error {
+	return d.Compose(t.Threads, t.Conversations, t.Members)
 }
 
-func (t *Chats) Register(d *stream.Domain) error {
-
-	c := []stream.Component{
-		t.Threads,
-		&stream.Projection[*Member]{
-			Documents: t.Members,
-		},
-		&stream.Projection[*Conversation]{
-			Documents: t.Conversations,
-		},
-	}
-
-	return d.Register(c...)
-}
-
-func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.Documents[E], error) {
+func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.Entities[E], error) {
 	if cdn := os.Getenv("MYSQL_EVENT_STORE"); cdn != "" {
 		c, err := mysql.NewConnection(cdn, nil)
 		if err != nil {
@@ -57,7 +41,7 @@ func storage[E stream.Entity](fn stream.EntityFunc[E]) (stream.Documents[E], err
 		return m, nil
 	}
 
-	return stream.NewDocuments[E](fn), nil
+	return stream.NewEntities[E](fn), nil
 }
 
 func delay(x time.Duration) {

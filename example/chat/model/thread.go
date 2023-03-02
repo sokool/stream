@@ -12,7 +12,7 @@ type Thread struct {
 	id              string
 	uncommitted     []Event
 	started, closed bool
-	moderator       Member
+	moderator       MemberID
 	members         Members
 	messages        int
 
@@ -41,7 +41,7 @@ func (t *Thread) Version() int64 {
 	return t.version
 }
 
-func (t *Thread) Start(channel string, p Member) error {
+func (t *Thread) Start(channel string, p MemberID) error {
 	switch {
 	case t.started:
 		return nil
@@ -56,7 +56,7 @@ func (t *Thread) Start(channel string, p Member) error {
 	)
 }
 
-func (t *Thread) Join(p Member) error {
+func (t *Thread) Join(p MemberID) error {
 	switch {
 	case !t.started:
 		return ErrNotExists
@@ -77,7 +77,7 @@ func (t *Thread) Join(p Member) error {
 	)
 }
 
-func (t *Thread) Message(p Member, text string) error {
+func (t *Thread) Message(p MemberID, text string) error {
 	switch {
 	case !t.started:
 		return ErrNotExists
@@ -99,7 +99,7 @@ func (t *Thread) Reply(on, participant, text string) error {
 	return nil
 }
 
-func (t *Thread) Leave(p Member) error {
+func (t *Thread) Leave(p MemberID) error {
 	switch {
 	case !t.started:
 		return ErrNotExists
@@ -116,7 +116,7 @@ func (t *Thread) Leave(p Member) error {
 	)
 }
 
-func (t *Thread) Kick(moderator, p Member) error {
+func (t *Thread) Kick(moderator, p MemberID) error {
 	switch {
 	case !t.started:
 		return ErrNotExists
@@ -136,7 +136,7 @@ func (t *Thread) Kick(moderator, p Member) error {
 	)
 }
 
-func (t *Thread) Mute(p Member, reason string) error {
+func (t *Thread) Mute(p MemberID, reason string) error {
 	if !t.members.isPresent(p) {
 		return nil
 	}
@@ -146,7 +146,7 @@ func (t *Thread) Mute(p Member, reason string) error {
 	)
 }
 
-func (t *Thread) Close(moderator Member) error {
+func (t *Thread) Close(moderator MemberID) error {
 	switch {
 	case !t.started:
 		return ErrNotExists
@@ -257,25 +257,25 @@ type (
 	Event = any
 
 	ThreadStarted struct {
-		Moderator Member
+		Moderator MemberID
 		Channel   string
 	}
 	ThreadJoined struct {
-		Participant Member
+		Participant MemberID
 	}
 	ThreadMessage struct {
 		ID          string
-		Participant Member
+		Participant MemberID
 		Text        string
 	}
 	ThreadLeft struct {
-		Participant Member
+		Participant MemberID
 	}
 	ThreadKicked struct {
-		Participant Member
+		Participant MemberID
 	}
 	ThreadMuted struct {
-		Participant Member
+		Participant MemberID
 		Reason      string
 	}
 	ThreadClosed struct{}

@@ -8,7 +8,7 @@ import (
 )
 
 type Member struct {
-	Id       string
+	Id       model.MemberID
 	Avatar   string
 	MutedDue string
 	JoinedAt time.Time `gorm:"type:string;serializer:json"`
@@ -16,26 +16,21 @@ type Member struct {
 	Seq      int64
 }
 
-func NewMember(se stream.Events) ([]*Member, error) {
-	var mm []*Member
+func NewMember(se stream.Events) (*Member, error) {
 	for i := range se {
-		var id string
 		switch e := se[i].Body().(type) {
 		case model.ThreadJoined:
-			id = string(e.Participant)
+			return &Member{Id: e.Participant}, nil
 
 		case model.ThreadLeft:
-			id = string(e.Participant)
+			return &Member{Id: e.Participant}, nil
 
 		case model.ThreadKicked:
-			id = string(e.Participant)
+			return &Member{Id: e.Participant}, nil
 
 		case model.ThreadMuted:
-			id = string(e.Participant)
-		default:
-			continue
+			return &Member{Id: e.Participant}, nil
 		}
-		mm = append(mm, &Member{Id: id})
 	}
 	return nil, nil
 }
@@ -51,16 +46,17 @@ func (a *Member) Version() int64 {
 func (a *Member) Commit(event any, createdAt time.Time) error {
 	switch e := event.(type) {
 	case model.ThreadJoined:
-		a.Id, a.JoinedAt = string(e.Participant), createdAt
+		a.Id, a.JoinedAt = e.Participant, createdAt
 
 	case model.ThreadLeft:
-		a.Id, a.LeftAt = string(e.Participant), createdAt
+		a.Id, a.LeftAt = e.Participant, createdAt
 
 	case model.ThreadKicked:
-		a.Id, a.LeftAt = string(e.Participant), createdAt
+		a.Id, a.LeftAt = e.Participant, createdAt
 
 	case model.ThreadMuted:
-		a.Id, a.MutedDue = string(e.Participant), e.Reason
+		a.Id, a.MutedDue = e.Participant, e.Reason
+
 	}
 
 	a.Seq++
@@ -75,7 +71,7 @@ func (a *Member) String() string {
 }
 
 type Members struct {
-	stream.Documents[*Member]
+	*stream.Projections[*Member]
 }
 
 func NewMembers() *Members {
@@ -84,25 +80,9 @@ func NewMembers() *Members {
 		panic(err)
 	}
 
-	return &Members{s}
-}
-
-func (m *Members) Build(events <-chan stream.Events) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (m *Members) Recent() ([]*Member, error) {
-	qy := []byte(`SELECT * FROM member WHERE seq > 400`)
-	return m.Documents.Read(qy)
-}
-
-func (m *Members) Name(n string) (*Member, error) {
-	q := fmt.Sprintf(`SELECT id FROM member WHERE id = "%s"`, n)
-	o, err := m.Documents.Read([]byte(q))
-	if err != nil || len(o) == 0 {
-		return nil, err
+	return &Members{
+		Projections: &stream.Projections[*Member]{
+			Store: s,
+		},
 	}
-
-	return o[0], nil
 }

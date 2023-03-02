@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// Aggregate is todo :)
-type Aggregate[R Root] struct {
+// Aggregates is todo :)
+type Aggregates[R Root] struct {
 	// Type ...
 	Type Type
 
@@ -22,13 +22,13 @@ type Aggregate[R Root] struct {
 	//OnSession func(R) (Session, error)
 
 	// OnLoad when all events are committed to R and state is rebuild from all previously persisted Event
-	OnLoad RootFunc[R]
+	OnLoad Command[R]
 
 	// OnRecall
 	//OnRecall func(Session, R) error
 
 	// OnSave called just after events are persisted to database
-	OnSave RootFunc[R]
+	OnSave Command[R]
 
 	// OnCommit when new events are committed to a Root
 	OnCommit func(R, Events) error // todo not able to deny it (error)
@@ -37,7 +37,7 @@ type Aggregate[R Root] struct {
 	OnRecall func(R) time.Time
 
 	// OnCacheCleanup when aggregate is removed from memory
-	OnCacheCleanup RootFunc[R]
+	OnCacheCleanup Command[R]
 
 	// Events
 	Events Schemas
@@ -58,14 +58,14 @@ type Aggregate[R Root] struct {
 	// Logger
 	Log Printer
 
-	// memory keeps created Changelog of Aggregate in order to avoid rebuilding
-	// state of each Aggregate everytime when Thread is called
+	// memory keeps created Changelog of Aggregates in order to avoid rebuilding
+	// state of each Aggregates everytime when Thread is called
 	memory *Cache[string, R]
 	mu     sync.Mutex
 }
 
 // todo recover panic
-func (a *Aggregate[R]) Execute(id string, command RootFunc[R]) error {
+func (a *Aggregates[R]) Execute(id string, command Command[R]) error {
 	for {
 		r, err := a.Get(id)
 		if err != nil {
@@ -88,7 +88,7 @@ func (a *Aggregate[R]) Execute(id string, command RootFunc[R]) error {
 	}
 }
 
-func (a *Aggregate[R]) Get(id string) (R, error) {
+func (a *Aggregates[R]) Get(id string) (R, error) {
 	var found bool
 	var d RootID
 	var r R
@@ -135,7 +135,8 @@ func (a *Aggregate[R]) Get(id string) (R, error) {
 	}
 }
 
-func (a *Aggregate[R]) Set(r R) error {
+func (a *Aggregates[R]) Set(r R) error {
+	s := time.Now()
 	if err := a.init(); err != nil {
 		return err
 	}
@@ -164,6 +165,8 @@ func (a *Aggregate[R]) Set(r R) error {
 		return err
 	}
 
+	a.Log("dbg %s stored in %s", events, time.Since(s))
+
 	if a.Writer != nil {
 		if _, err = a.Writer.Write(events); err != nil {
 			return err
@@ -179,7 +182,7 @@ func (a *Aggregate[R]) Set(r R) error {
 	return a.memory.Set(r.ID(), r)
 }
 
-func (a *Aggregate[R]) commit(r R, e []Event) error {
+func (a *Aggregates[R]) commit(r R, e []Event) error {
 	if len(e) == 0 {
 		return nil
 	}
@@ -204,7 +207,7 @@ func (a *Aggregate[R]) commit(r R, e []Event) error {
 	return nil
 }
 
-func (a *Aggregate[R]) init() (err error) {
+func (a *Aggregates[R]) init() (err error) {
 	if a.Type.IsZero() {
 		var r R
 		if a.Type, err = NewType(r); err != nil {
@@ -227,7 +230,7 @@ func (a *Aggregate[R]) init() (err error) {
 	return nil
 }
 
-func (a *Aggregate[R]) String() string {
+func (a *Aggregates[R]) String() string {
 	if a.Store == nil {
 		return ""
 	}
@@ -240,13 +243,13 @@ func (a *Aggregate[R]) String() string {
 	return e.String()
 }
 
-func (a *Aggregate[R]) register(in *Domain) (err error) {
+func (a *Aggregates[R]) Compose(with *Engine) (err error) {
 	if err = a.init(); err != nil {
 		return err
 	}
 
 	if _, ok := a.Store.(*store); ok {
-		a.Store = in.store
+		a.Store = with.store
 	}
 
 	if err = registry.merge(a.Events, a.Type); err != nil {
@@ -254,15 +257,16 @@ func (a *Aggregate[R]) register(in *Domain) (err error) {
 	}
 
 	if a.Log == nil {
-		a.Log = in.logger(a.Type)
+		a.Log = with.logger(a.Type)
 	}
 
 	if a.Writer != nil {
-		if err = in.register(a.Writer, a.Type); err != nil {
+		if err = with.register(a.Writer, a.Type); err != nil {
 			return err
 		}
 	}
-	a.Writer = in
+	a.Writer = with
+	a.Log("aggregate composed")
 	return nil
 }
 

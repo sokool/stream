@@ -13,17 +13,17 @@ func TestNewScheme(t *testing.T) {
 		fmt.Println(threads.Threads.Events[i])
 	}
 
-	//x := threads.(stream.Aggregate[stream.Root])
-	//var y stream.Aggregate[stream.Root]
+	//x := threads.(stream.Aggregates[stream.Root])
+	//var y stream.Aggregates[stream.Root]
 
 	//fmt.Println(x)
-	//s := stream.NewDomain[stream.Aggregate[stream.Root]]()
-	//s.Register(threads.(*stream.Aggregate[stream.Root]))
+	//s := stream.NewDomain[stream.Aggregates[stream.Root]]()
+	//s.Register(threads.(*stream.Aggregates[stream.Root]))
 
 	//fmt.Println(s.Register(threads))
-	//o := []stream.Aggregate[stream.Root]{
-	//	stream.Aggregate[*model.Thread]{},
+	//o := []stream.Aggregates[stream.Root]{
+	//	stream.Aggregates[*model.Thread]{},
 	//}
 	//fmt.Println(o)
-	//s.Register(x.(stream.Aggregate[stream.Root]))
+	//s.Register(x.(stream.Aggregates[stream.Root]))
 }

@@ -22,7 +22,7 @@ type Uncommitter interface {
 	Uncommitted(clear bool) (events []any)
 }
 
-type RootFunc[R Root] func(R) error
+type Command[R Root] func(R) error
 
 type RootID struct {
 	id  ID

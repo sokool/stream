@@ -6,7 +6,7 @@ import (
 )
 
 type Component interface {
-	register(*Domain) error
+	Compose(*Engine) error
 }
 
 type Configuration struct {
@@ -18,7 +18,7 @@ type Configuration struct {
 	EventStore func(Printer) EventStore // todo func not needed
 }
 
-type Domain struct {
+type Engine struct {
 	name    Type
 	store   EventStore
 	logger  Logger
@@ -27,8 +27,8 @@ type Domain struct {
 	mu      sync.RWMutex
 }
 
-func NewDomain(c *Configuration) *Domain {
-	s := Domain{
+func New(c *Configuration) *Engine {
+	s := Engine{
 		name:    c.Name,
 		store:   NewEventStore(),
 		logger:  NewLogger(os.Stdout, "stream", true).WithTag,
@@ -47,19 +47,19 @@ func NewDomain(c *Configuration) *Domain {
 	return &s
 }
 
-func (s *Domain) Register(c ...Component) error {
+func (s *Engine) Compose(c ...Component) error {
 	//s.mu.Lock()
 	//defer s.mu.Unlock()
 
 	for i := range c {
-		if err := c[i].register(s); err != nil {
+		if err := c[i].Compose(s); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *Domain) Write(e Events) (n int, err error) {
+func (s *Engine) Write(e Events) (n int, err error) {
 	var swg sync.WaitGroup
 	var che = make(chan error, len(s.writers))
 
@@ -95,7 +95,7 @@ func (s *Domain) Write(e Events) (n int, err error) {
 	return len(e), <-che
 }
 
-func (s *Domain) register(w Writer, t Type) error {
+func (s *Engine) register(w Writer, t Type) error {
 	if _, ok := s.writers[t]; ok {
 		return Err("%s already registered", t)
 	}
@@ -104,4 +104,4 @@ func (s *Domain) register(w Writer, t Type) error {
 	return nil
 }
 
-func (s *Domain) Run() {}
+func (s *Engine) Run() {}
