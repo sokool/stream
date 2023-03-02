@@ -2,50 +2,50 @@ package repository
 
 import (
 	"github.com/sokool/stream"
-	"github.com/sokool/stream/example/chat/model"
+	"github.com/sokool/stream/example/chat/threads"
 )
 
 type Threads struct {
-	*stream.Aggregates[*model.Thread]
+	*stream.Aggregates[*threads.Thread]
 }
 
 func NewThreads() *Threads {
 	return &Threads{
-		&stream.Aggregates[*model.Thread]{
+		&stream.Aggregates[*threads.Thread]{
 			Description: "",
-			OnCreate: func(id string) (*model.Thread, error) {
-				t, err := model.NewThread(id)
+			OnCreate: func(id string) (*threads.Thread, error) {
+				t, err := threads.NewThread(id)
 				//fmt.Println("on.create", t)
 				return t, err
 			},
-			OnLoad: func(t *model.Thread) error {
+			OnLoad: func(t *threads.Thread) error {
 				//fmt.Println("on.load", t)
 				return nil
 			},
-			OnCommit: func(t *model.Thread, e stream.Events) error {
+			OnCommit: func(t *threads.Thread, e stream.Events) error {
 				//fmt.Println("on.commit", t, len(e))
 				return nil
 			},
-			OnSave: func(t *model.Thread) error {
+			OnSave: func(t *threads.Thread) error {
 				//fmt.Println("on.save", t)
 				return nil
 			},
 			Events: stream.Schemas{
-				model.ThreadStarted{}: {
+				threads.ThreadStarted{}: {
 					Description: "thread starts automatically, when there is a longer break between messages",
 					//Transaction: m,
 				},
-				model.ThreadMessage{}: {
+				threads.ThreadMessage{}: {
 					Transaction: "Conversations",
 				},
-				model.ThreadJoined{}: {
+				threads.ThreadJoined{}: {
 					Transaction: "Members",
 				},
-				model.ThreadLeft{}: {
+				threads.ThreadLeft{}: {
 					Transaction: "Members",
 				},
-				model.ThreadMuted{}: {},
-				model.ThreadKicked{}: {
+				threads.ThreadMuted{}: {},
+				threads.ThreadKicked{}: {
 					Transaction: "Members",
 				},
 			},

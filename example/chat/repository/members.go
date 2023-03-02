@@ -2,13 +2,14 @@ package repository
 
 import (
 	"fmt"
-	"github.com/sokool/stream"
-	"github.com/sokool/stream/example/chat/model"
 	"time"
+
+	"github.com/sokool/stream"
+	"github.com/sokool/stream/example/chat/threads"
 )
 
 type Member struct {
-	Id       model.MemberID
+	Id       threads.MemberID
 	Avatar   string
 	MutedDue string
 	JoinedAt time.Time `gorm:"type:string;serializer:json"`
@@ -19,16 +20,16 @@ type Member struct {
 func NewMember(se stream.Events) (*Member, error) {
 	for i := range se {
 		switch e := se[i].Body().(type) {
-		case model.ThreadJoined:
+		case threads.ThreadJoined:
 			return &Member{Id: e.Participant}, nil
 
-		case model.ThreadLeft:
+		case threads.ThreadLeft:
 			return &Member{Id: e.Participant}, nil
 
-		case model.ThreadKicked:
+		case threads.ThreadKicked:
 			return &Member{Id: e.Participant}, nil
 
-		case model.ThreadMuted:
+		case threads.ThreadMuted:
 			return &Member{Id: e.Participant}, nil
 		}
 	}
@@ -45,16 +46,16 @@ func (a *Member) Version() int64 {
 
 func (a *Member) Commit(event any, createdAt time.Time) error {
 	switch e := event.(type) {
-	case model.ThreadJoined:
+	case threads.ThreadJoined:
 		a.Id, a.JoinedAt = e.Participant, createdAt
 
-	case model.ThreadLeft:
+	case threads.ThreadLeft:
 		a.Id, a.LeftAt = e.Participant, createdAt
 
-	case model.ThreadKicked:
+	case threads.ThreadKicked:
 		a.Id, a.LeftAt = e.Participant, createdAt
 
-	case model.ThreadMuted:
+	case threads.ThreadMuted:
 		a.Id, a.MutedDue = e.Participant, e.Reason
 
 	}

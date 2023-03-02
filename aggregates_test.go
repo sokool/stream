@@ -1,15 +1,16 @@
 package stream_test
 
 import (
-	"github.com/icrowley/fake"
-	"github.com/sokool/stream"
-	"github.com/sokool/stream/example/chat/model"
-	"github.com/sokool/stream/example/chat/repository"
-	"github.com/sokool/stream/store/mysql"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/icrowley/fake"
+	"github.com/sokool/stream"
+	"github.com/sokool/stream/example/chat/repository"
+	"github.com/sokool/stream/example/chat/threads"
+	"github.com/sokool/stream/store/mysql"
 )
 
 func TestAggregates(t *testing.T) {
@@ -20,7 +21,7 @@ func TestAggregates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	type Thread = model.Thread
+	type Thread = threads.Thread
 	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Start(ch, "tom@on.de") }); err != nil {
 		t.Fatal(err)
 	}

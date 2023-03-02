@@ -2,10 +2,11 @@ package repository
 
 import (
 	"fmt"
-	"github.com/sokool/stream"
-	"github.com/sokool/stream/example/chat/model"
 	"strings"
 	"time"
+
+	"github.com/sokool/stream"
+	"github.com/sokool/stream/example/chat/threads"
 )
 
 type Conversations struct {
@@ -52,10 +53,10 @@ func (c *Conversation) Version() int64 {
 func (c *Conversation) Commit(event any, createdAt time.Time) error {
 	//delay(time.Millisecond * 1500)
 	switch e := event.(type) {
-	case model.ThreadStarted:
+	case threads.ThreadStarted:
 		c.Channel, c.StartedAt = e.Channel, createdAt.String()
 
-	case model.ThreadMessage:
+	case threads.ThreadMessage:
 		if strings.Contains(e.Text, "crush!") {
 			return fmt.Errorf("oh no, it's crush message")
 		}
@@ -65,10 +66,10 @@ func (c *Conversation) Commit(event any, createdAt time.Time) error {
 			e.Participant,
 			e.Text))
 
-	case model.ThreadClosed:
+	case threads.ThreadClosed:
 		c.FinishedAt = createdAt.String()
 
-	case model.ThreadLeft:
+	case threads.ThreadLeft:
 		//return fmt.Errorf("i will not accept it, do not want it")
 	}
 

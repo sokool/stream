@@ -1,4 +1,4 @@
-package model
+package threads
 
 type MemberID string
 
