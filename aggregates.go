@@ -136,39 +136,45 @@ func (a *Aggregates[R]) Get(id string) (R, error) {
 }
 
 func (a *Aggregates[R]) Set(r R) error {
-	s := time.Now()
-	if err := a.init(); err != nil {
+	var tn = time.Now()
+	var id RootID
+	var ee Events
+	var err error
+
+	if err = a.init(); err != nil {
 		return err
 	}
 
-	events, err := NewEvents(r)
-	if err != nil || len(events) == 0 {
+	if ee, err = NewEvents(r); err != nil || len(ee) == 0 {
 		return err
 	}
 
-	rid := events.Unique()
-	if rid.IsZero() { //todo error description
-		return Err("aggregate %s events required to be from one root", rid)
+	if ok := registry.exists(ee); !ok {
+		return Err("%s event schema not found, please register it before aggregate root is persisted", ee)
+	}
+
+	if id = ee.Unique(); id.IsZero() { //todo error description
+		return Err("aggregate %s events required to be from one root", id)
 	}
 
 	var n int
-	switch n, err = a.Store.ReadWriter(rid).WriteAt(events, r.Version()); {
+	switch n, err = a.Store.ReadWriter(id).WriteAt(ee, r.Version()); {
 	case err != nil:
 		return err
 
-	case n != len(events):
+	case n != len(ee):
 		return ErrShortWrite
 
 	}
 
-	if err = a.commit(r, events); err != nil {
+	if err = a.commit(r, ee); err != nil {
 		return err
 	}
 
-	a.Log("dbg %s stored in %s", events, time.Since(s))
+	a.Log("dbg %s stored in %s", ee, time.Since(tn))
 
 	if a.Writer != nil {
-		if _, err = a.Writer.Write(events); err != nil {
+		if _, err = a.Writer.Write(ee); err != nil {
 			return err
 		}
 	}

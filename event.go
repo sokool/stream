@@ -127,10 +127,6 @@ func NewEvents(r Root) (ee Events, err error) {
 			return nil, err
 		}
 
-		if registry.get(e).isZero() {
-			return nil, Err("%s not found in registry", e)
-		}
-
 		ee = append(ee, e)
 	}
 
@@ -204,7 +200,7 @@ func (r Events) Size() int {
 	return len(r)
 }
 
-func (r Events) IsZero() bool {
+func (r Events) AreEmpty() bool {
 	return r.Size() == 0
 }
 
@@ -218,7 +214,7 @@ func (r Events) Last() Event {
 }
 
 func (r Events) Hash() string {
-	if r.IsZero() {
+	if r.AreEmpty() {
 		return ""
 	}
 	return uid(r.String())

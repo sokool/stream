@@ -106,6 +106,14 @@ func (r *schemas) get(e Event) schema {
 	return schema{}
 }
 
+func (r *schemas) exists(ee []Event) bool {
+	for i := range ee {
+		if r.get(ee[i]).isZero() {
+			return false
+		}
+	}
+	return true
+}
 func (r *schemas) Filtrate(e *Event) (bool, error) {
 	//TODO implement me
 	panic("implement me")
