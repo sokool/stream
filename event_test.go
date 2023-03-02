@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/sokool/stream"
-	. "github.com/sokool/stream/example/chat/model"
+	"github.com/sokool/stream/example/chat/model"
 )
 
 func TestNewEvent(t *testing.T) {
@@ -12,7 +12,7 @@ func TestNewEvent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := ThreadStarted{Moderator: "Tom", Channel: "#general"}
+	m := model.ThreadStarted{Moderator: "Tom", Channel: "#general"}
 	e, err := stream.NewEvent(id, m, 1)
 	if err != nil {
 		t.Fatal(err)
@@ -44,7 +44,7 @@ func TestNewEvent(t *testing.T) {
 }
 
 func TestNewEvents(t *testing.T) {
-	a, err := NewThread("Uh3D9L13")
+	a, err := model.NewThread("Uh3D9L13")
 	if err != nil {
 		t.Fatal(err)
 	}
