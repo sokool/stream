@@ -2,9 +2,10 @@ package stream_test
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/sokool/stream"
 	"github.com/sokool/stream/example/chat/model"
-	"testing"
 )
 
 func Test(t *testing.T) {
@@ -26,19 +27,37 @@ func Test(t *testing.T) {
 }
 
 func TestNewEvent(t *testing.T) {
-	id, err := stream.ParseRootID("ja5285.Payment")
+	id, err := stream.ParseRootID("ja5285.Thread")
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	type Collected struct{ Amount int }
-
-	e, err := stream.NewEvent(id, Collected{837}, 1)
+	m := model.ThreadStarted{Moderator: "Tom", Channel: "#general"}
+	e, err := stream.NewEvent(id, m, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	if !e.Belongs(id) {
 		t.Fatal("ble")
+	}
+	if e.IsEmpty() {
+		t.Fatal("expected nonempty event")
+	}
+	if e.Root() != id.Type() {
+		t.Fatal()
+	}
+	if e.Type() != "Started" {
+		t.Fatal()
+	}
+	if e.Name() != "ThreadStarted" {
+		t.Fatal()
+	}
+	if e.CreatedAt().IsZero() {
+		t.Fatal()
+	}
+	if e.Sequence() != 1 {
+		t.Fatal()
+	}
+	if e.Stream() != id.ID() {
+		t.Fatal()
 	}
 }

@@ -100,7 +100,7 @@ func (e *Event) GoString() string {
 	return fmt.Sprintf("%T\n%s\n", e.body, b)
 }
 
-func (e *Event) IsZero() bool {
+func (e *Event) IsEmpty() bool {
 	return e.id == ""
 }
 
@@ -167,7 +167,7 @@ func (r Events) Unique() RootID {
 
 func (r Events) hasUnique(id RootID) bool {
 	for i := range r {
-		if id != r[i].root && !r[i].IsZero() {
+		if id != r[i].root && !r[i].IsEmpty() {
 			return false
 		}
 	}
@@ -181,7 +181,7 @@ func (r Events) String() string {
 		var t []string
 		var d int64
 		for i := range r {
-			if r[i].IsZero() {
+			if r[i].IsEmpty() {
 				continue
 			}
 			t, d = append(t, r[i].typ.String()), r[i].sequence
@@ -191,7 +191,7 @@ func (r Events) String() string {
 	}
 
 	for i := range r {
-		if r[i].IsZero() {
+		if r[i].IsEmpty() {
 			continue
 		}
 		s += fmt.Sprintf("%s\n", &r[i])
