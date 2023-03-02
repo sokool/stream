@@ -141,7 +141,7 @@ func (a *Aggregates[R]) Set(r R) error {
 		return err
 	}
 
-	events, err := make(Events, 0).Append(r)
+	events, err := NewEvents(r)
 	if err != nil || len(events) == 0 {
 		return err
 	}
