@@ -114,24 +114,28 @@ func (e *Event) Decode(b []byte) error {
 
 type Events []Event
 
-//func NewEvents(r Root) (ee Events, err error) {
-//	var id RootID
-//	var k = r.Version() + 1
-//	if id, err = NewRootID(r); err != nil {
-//		return nil, err
-//	}
-//
-//	for i, v := range r.Uncommitted(true) {
-//		var e Event
-//		if e, err = NewEvent(id, v, k+int64(i)); err != nil {
-//			return nil, err
-//		}
-//
-//		ee = append(ee, e)
-//	}
-//
-//	return ee, nil
-//}
+func NewEvents(r Root) (ee Events, err error) {
+	id, err := NewRootID(r)
+	if err != nil {
+		return nil, err
+	}
+
+	k := r.Version() + 1
+	for i, v := range r.Uncommitted(true) {
+		e, err := NewEvent(id, v, k+int64(i))
+		if err != nil {
+			return nil, err
+		}
+
+		if registry.get(e).isZero() {
+			return nil, Err("%s not found in registry", e)
+		}
+
+		ee = append(ee, e)
+	}
+
+	return ee, nil
+}
 
 // Unique gives RootID when all events has same RootID
 func (r Events) Unique() RootID {
@@ -194,29 +198,6 @@ func (r Events) String() string {
 	}
 
 	return s
-}
-
-func (r Events) Append(s Root) (Events, error) {
-	id, err := NewRootID(s)
-	if err != nil {
-		return nil, err
-	}
-
-	k := s.Version() + 1
-	for i, v := range s.Uncommitted(true) {
-		e, err := NewEvent(id, v, k+int64(i))
-		if err != nil {
-			return nil, err
-		}
-
-		if registry.get(e).isZero() {
-			return nil, Err("%s not found in registry", e)
-		}
-
-		r = append(r, e)
-	}
-
-	return r, nil
 }
 
 func (r Events) Size() int {
