@@ -6,13 +6,14 @@ import (
 )
 
 type Service struct {
+	Stream        *stream.Engine
 	Threads       *repository.Threads
 	Members       *repository.Members
 	Conversations *repository.Conversations
 }
 
 func New(se *stream.Engine) (*Service, error) {
-	var s Service
+	var s = Service{Stream: se}
 	var err error
 	if s.Threads, err = repository.NewThreads(se); err != nil {
 		return nil, err

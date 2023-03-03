@@ -1,14 +1,15 @@
 package mysql
 
 import (
+	"log"
+	"strings"
+	"time"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/sokool/stream"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"log"
-	"strings"
-	"time"
 )
 
 type Connection struct {

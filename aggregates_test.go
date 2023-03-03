@@ -22,31 +22,31 @@ func TestAggregates(t *testing.T) {
 
 	id, ch := fake.CharactersN(6), "#"+strings.ReplaceAll(strings.ToLower(fake.Street()), " ", "-")
 	type Thread = threads.Thread
-	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Start(ch, "tom@on.de") }); err != nil {
+	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Start(ch, "tom@on.de") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Message("tom@on.de", "hi there") }); err != nil {
+	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Message("tom@on.de", "hi there") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Join("greg@gog.pl") }); err != nil {
+	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Join("greg@gog.pl") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Message("greg@gog.pl", "crusher!") }); err != nil {
+	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Message("greg@gog.pl", "crusher!") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Join("mark@gog.pl") }); err != nil {
+	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Join("mark@gog.pl") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Message("tom@on.de", "fine, thx!") }); err != nil {
+	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Message("tom@on.de", "fine, thx!") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Leave("tom@on.de") }); err != nil {
+	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Leave("tom@on.de") }); err != nil {
 		t.Fatal(err)
 	}
 
