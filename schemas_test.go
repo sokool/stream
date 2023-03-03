@@ -2,12 +2,13 @@ package stream_test
 
 import (
 	"fmt"
-	"github.com/sokool/stream/example/chat/repository"
 	"testing"
+
+	"github.com/sokool/stream/example/chat"
 )
 
 func TestNewScheme(t *testing.T) {
-	threads := repository.NewChats()
+	threads, _ := chat.New(NewEngine(t))
 
 	for i := range threads.Threads.Events {
 		fmt.Println(threads.Threads.Events[i])

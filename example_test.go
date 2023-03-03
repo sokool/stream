@@ -2,12 +2,16 @@ package stream_test
 
 import (
 	"fmt"
-	"github.com/sokool/stream/example/chat/repository"
+
+	"github.com/sokool/stream"
+	"github.com/sokool/stream/example/chat"
 )
 
 func ExampleAggregate_Execute() {
-	id, threads := "k8Duq81o", repository.NewChats()
-	chat, err := threads.Threads.Get(id)
+	s := stream.New(&stream.Configuration{})
+	chats, _ := chat.New(s)
+	id := "k8Duq81o"
+	chat, err := chats.Threads.Get(id)
 	if err != nil {
 		return
 	}
@@ -18,7 +22,7 @@ func ExampleAggregate_Execute() {
 	}
 	fmt.Println(chat)
 
-	if err = threads.Threads.Set(chat); err != nil {
+	if err = chats.Threads.Set(chat); err != nil {
 		return
 	}
 

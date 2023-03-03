@@ -29,7 +29,7 @@ type Thread struct {
 	version int64
 }
 
-func NewThread(id string) (*Thread, error) {
+func New(id string) (*Thread, error) {
 	return &Thread{id: id, members: make(Members)}, nil
 }
 
@@ -282,3 +282,7 @@ type (
 
 	recalled struct{}
 )
+
+type Repository interface {
+	Get(string) (*Thread, error)
+}

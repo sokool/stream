@@ -8,6 +8,17 @@ import (
 	"github.com/sokool/stream/example/chat/threads"
 )
 
+type Members = stream.Projections[*Member]
+
+func NewMembers(se *stream.Engine) (*Members, error) {
+	var m Members
+	var err error
+	if m.Store, err = storage[*Member](NewMember); err != nil {
+		return nil, err
+	}
+	return &m, m.Compose(se)
+}
+
 type Member struct {
 	Id       threads.MemberID
 	Avatar   string
@@ -69,21 +80,4 @@ func (a *Member) String() string {
 		return ""
 	}
 	return fmt.Sprintf("%s |> %s", a.JoinedAt.Format(time.StampMilli), a.Id)
-}
-
-type Members struct {
-	*stream.Projections[*Member]
-}
-
-func NewMembers() *Members {
-	s, err := storage[*Member](NewMember)
-	if err != nil {
-		panic(err)
-	}
-
-	return &Members{
-		Projections: &stream.Projections[*Member]{
-			Store: s,
-		},
-	}
 }

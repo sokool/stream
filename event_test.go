@@ -44,7 +44,7 @@ func TestNewEvent(t *testing.T) {
 }
 
 func TestNewEvents(t *testing.T) {
-	a, err := threads.NewThread("Uh3D9L13")
+	a, err := threads.New("Uh3D9L13")
 	if err != nil {
 		t.Fatal(err)
 	}

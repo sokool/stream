@@ -1,6 +1,7 @@
 package stream_test
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -8,19 +9,18 @@ import (
 
 	"github.com/icrowley/fake"
 	"github.com/sokool/stream"
-	"github.com/sokool/stream/example/chat/repository"
+	"github.com/sokool/stream/example/chat"
 	"github.com/sokool/stream/example/chat/threads"
 	"github.com/sokool/stream/store/mysql"
 )
 
 func TestAggregates(t *testing.T) {
-	d := NewEngine(t)
-	id, ch, chats := fake.CharactersN(6), "#"+strings.ReplaceAll(strings.ToLower(fake.Street()), " ", "-"), repository.NewChats()
-
-	if err := d.Compose(chats); err != nil {
+	chats, err := chat.New(NewEngine(t))
+	if err != nil {
 		t.Fatal(err)
 	}
 
+	id, ch := fake.CharactersN(6), "#"+strings.ReplaceAll(strings.ToLower(fake.Street()), " ", "-")
 	type Thread = threads.Thread
 	if err := chats.Threads.Execute(id, func(t *Thread) error { return t.Start(ch, "tom@on.de") }); err != nil {
 		t.Fatal(err)
@@ -51,6 +51,26 @@ func TestAggregates(t *testing.T) {
 	}
 
 	time.Sleep(time.Second * 7)
+}
+
+func TestAggregates_Set(t *testing.T) {
+	id := fake.CharactersN(8)
+	se := NewEngine(t)
+	cs, err := chat.New(se)
+
+	t1, err := cs.Threads.Get(id)
+	t2, err := cs.Threads.Get(id)
+
+	if err = t1.Start("#general", "tom"); err != nil {
+		t.Fatal(err)
+	}
+	//if err = tr.Set(t1); err != nil {
+	//	t.Fatal(err)
+	//}
+	//if err = tr.Set(t2); err != nil {
+	//	t.Fatal(err)
+	//}
+	fmt.Print(t1, t2)
 }
 
 func NewEngine(t *testing.T) *stream.Engine {

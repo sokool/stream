@@ -7,11 +7,11 @@ import (
 
 type Table[E Entity] struct {
 	name   string
-	create EntityFunc[E]
+	create NewEntity[E]
 	c      *Connection
 }
 
-func NewTable[E Entity](c *Connection, fn EntityFunc[E]) (*Table[E], error) {
+func NewTable[E Entity](c *Connection, fn NewEntity[E]) (*Table[E], error) {
 	var e E
 
 	t, err := NewType(e)

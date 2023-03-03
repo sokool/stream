@@ -9,21 +9,17 @@ import (
 	"github.com/sokool/stream/example/chat/threads"
 )
 
-type Conversations struct {
-	*stream.Projections[*Conversation]
-}
+type Conversations = stream.Projections[*Conversation]
 
-func NewConversations() *Conversations {
-	s, err := storage[*Conversation](NewConversation)
-	if err != nil {
-		panic(err)
+func NewConversations(se *stream.Engine) (*Conversations, error) {
+	var c Conversations
+	var err error
+
+	if c.Store, err = storage(NewConversation); err != nil {
+		return nil, err
 	}
 
-	return &Conversations{
-		Projections: &stream.Projections[*Conversation]{
-			Store: s,
-		},
-	}
+	return &c, c.Compose(se)
 }
 
 type Conversation struct {
