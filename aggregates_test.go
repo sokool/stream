@@ -1,7 +1,6 @@
 package stream_test
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -53,24 +52,47 @@ func TestAggregates(t *testing.T) {
 	time.Sleep(time.Second * 7)
 }
 
-func TestAggregates_Set(t *testing.T) {
-	id := fake.CharactersN(8)
-	se := NewEngine(t)
-	cs, err := chat.New(se)
-
-	t1, err := cs.Threads.Get(id)
-	t2, err := cs.Threads.Get(id)
-
+func TestAggregates_SetGet(t *testing.T) {
+	id, se := fake.CharactersN(8), NewEngine(t)
+	chats, err := chat.New(se)
+	t1, err := chats.Threads.Get(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t2, err := chats.Threads.Get(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if t1 != t2 {
+		t.Fatal()
+	}
+	if t1.ID() != id {
+		t.Fatal()
+	}
+	if t1.Version() != 0 {
+		t.Fatal()
+	}
+	if len(t1.Uncommitted(false)) != 0 {
+		t.Fatal()
+	}
 	if err = t1.Start("#general", "tom"); err != nil {
 		t.Fatal(err)
 	}
-	//if err = tr.Set(t1); err != nil {
-	//	t.Fatal(err)
-	//}
-	//if err = tr.Set(t2); err != nil {
-	//	t.Fatal(err)
-	//}
-	fmt.Print(t1, t2)
+	if t1.Version() != 0 {
+		t.Fatal()
+	}
+	if len(t1.Uncommitted(false)) != 2 {
+		t.Fatal()
+	}
+	if err = chats.Threads.Set(t1); err != nil {
+		t.Fatal(err)
+	}
+	if t1.Version() != 2 {
+		t.Fatal()
+	}
+	if len(t1.Uncommitted(false)) != 0 {
+		t.Fatal()
+	}
 }
 
 func NewEngine(t *testing.T) *stream.Engine {
