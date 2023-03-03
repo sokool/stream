@@ -1,9 +1,10 @@
-package mysql
+package sql
 
 import (
+	"strings"
+
 	"github.com/doug-martin/goqu"
 	. "github.com/sokool/stream"
-	"strings"
 )
 
 type EventsReader struct {

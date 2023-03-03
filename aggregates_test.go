@@ -10,7 +10,7 @@ import (
 	"github.com/sokool/stream"
 	"github.com/sokool/stream/example/chat"
 	"github.com/sokool/stream/example/chat/threads"
-	"github.com/sokool/stream/store/mysql"
+	"github.com/sokool/stream/store/sql"
 )
 
 func TestAggregates(t *testing.T) {
@@ -104,7 +104,7 @@ func NewEngine(t *testing.T) *stream.Engine {
 				return stream.NewEventStore()
 			}
 
-			es, err := mysql.NewEventsStore(host, l)
+			es, err := sql.NewEventsStore(host, l)
 			if err != nil {
 				t.Fatal(err)
 			}

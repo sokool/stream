@@ -1,11 +1,12 @@
-package mysql
+package sql
 
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/jmoiron/sqlx"
 	. "github.com/sokool/stream"
-	"strings"
 )
 
 type EventsWriter struct {

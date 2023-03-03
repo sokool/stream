@@ -1,15 +1,16 @@
-package mysql_test
+package sql_test
 
 import (
 	"fmt"
-	"github.com/sokool/stream"
-	"github.com/sokool/stream/store/mysql"
 	"os"
 	"testing"
+
+	"github.com/sokool/stream"
+	"github.com/sokool/stream/store/sql"
 )
 
 func TestName(t *testing.T) {
-	s, err := mysql.NewEventsStore(os.Getenv("MYSQL_EVENT_STORE"), nil)
+	s, err := sql.NewEventsStore(os.Getenv("MYSQL_EVENT_STORE"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
