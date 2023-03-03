@@ -7,14 +7,14 @@ import (
 	"github.com/sokool/stream/store/mysql"
 )
 
-func storage[E stream.Entity](fn stream.NewEntity[E]) (stream.Entities[E], error) {
+func storage[E stream.Entity](sne stream.NewEntity[E]) (stream.Entities[E], error) {
 	if cdn := os.Getenv("MYSQL_EVENT_STORE"); cdn != "" {
 		c, err := mysql.NewConnection(cdn, nil)
 		if err != nil {
 			return nil, err
 		}
 
-		m, err := mysql.NewTable[E](c, fn)
+		m, err := mysql.NewTable[E](c, sne)
 		if err != nil {
 			return nil, err
 		}
@@ -22,5 +22,5 @@ func storage[E stream.Entity](fn stream.NewEntity[E]) (stream.Entities[E], error
 		return m, nil
 	}
 
-	return stream.NewEntities[E](fn), nil
+	return stream.NewEntities[E](sne), nil
 }
