@@ -32,7 +32,7 @@ func (r *schemas) decode(e *Event, b []byte) error {
 
 	s := r.get(*e)
 	if s.isZero() {
-		return fmt.Errorf("scheme %s nooot found", s.name())
+		return fmt.Errorf("%s event scheme not found", e.Name())
 	}
 
 	if s.migrate != nil {
