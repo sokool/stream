@@ -6,8 +6,9 @@ import (
 )
 
 type Cache[K comparable, V any] struct {
-	mu   sync.Mutex
-	list map[K]V
+	mu      sync.Mutex
+	cleanup func(K, V)
+	list    map[K]V
 }
 
 func NewCache[K comparable, V any](cleanupAfter ...time.Duration) *Cache[K, V] {
@@ -27,6 +28,14 @@ func NewCache[K comparable, V any](cleanupAfter ...time.Duration) *Cache[K, V] {
 	//	}
 	//}()
 	return &c
+}
+
+func (c *Cache[K, V]) WithCleanup(fn func(K, V)) *Cache[K, V] {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.cleanup = fn
+	return c
 }
 
 func (c *Cache[K, V]) Get(key K) (V, bool) {

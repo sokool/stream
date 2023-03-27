@@ -1,9 +1,10 @@
 package stream
 
 import (
-	"github.com/google/uuid"
 	"reflect"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 type Type string
@@ -27,6 +28,15 @@ func NewType(v any) (Type, error) {
 	}
 
 	return Type(strings.Title(s)), nil
+}
+
+func MustType[T any]() Type {
+	var v T
+	t, err := NewType(v)
+	if err != nil {
+		panic(err)
+	}
+	return t
 }
 
 func (t Type) Hash() string {

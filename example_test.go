@@ -4,34 +4,28 @@ import (
 	"fmt"
 
 	"github.com/sokool/stream"
-	"github.com/sokool/stream/example/chat"
+	"github.com/sokool/stream/example/chat/threads"
 )
 
-func ExampleAggregate_Execute() {
-	s := stream.New(&stream.Configuration{})
-	chats, _ := chat.New(s)
-	id := "k8Duq81o"
-	chat, err := chats.Threads.Get(id)
+func ExampleAggregate_Run() {
+	chat, err := stream.NewAggregate("k8Duq81o", threads.New, threads.Events)
 	if err != nil {
 		return
 	}
 	fmt.Println(chat)
 
-	if err = chat.Start("elo", "dood"); err != nil {
+	if err = chat.Run(func(t *threads.Thread) error { return t.Start("elo", "dood") }); err != nil {
 		return
 	}
 	fmt.Println(chat)
 
-	if err = chats.Threads.Set(chat); err != nil {
+	if _, err = chat.WriteTo(stream.MemoryEventStore); err != nil {
 		return
 	}
-
 	fmt.Println(chat)
-
-	//x, _ := threads.Members.Store.Load(nil)
 
 	// Output:
-	// k8Duq81o.Thread#0
-	// k8Duq81o.Thread#0->2
-	// k8Duq81o.Thread#2
+	// k8Duq81o:Thread#0
+	// k8Duq81o:Thread#0->2
+	// k8Duq81o:Thread#2
 }

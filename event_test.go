@@ -44,26 +44,29 @@ func TestNewEvent(t *testing.T) {
 }
 
 func TestNewEvents(t *testing.T) {
-	a, err := threads.New("Uh3D9L13")
+	r, err := stream.NewAggregate("Uh3D9L13", threads.New, threads.Events)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = a.Start("#general", "tom"); err != nil {
+
+	s := func(t *threads.Thread) error { return t.Start("#general", "tom") }
+
+	if err = r.Run(s); err != nil {
 		t.Fatal(err)
 	}
-	ee, err := stream.NewEvents(a)
+
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ee.Size() != 2 {
+	if s := r.Events().Size(); s != 2 {
+		t.Fatalf("expected 2 events, got %d", s)
+	}
+
+	if r.Events()[0].String() != "Uh3D9L13:1:Thread[Started]" {
 		t.Fatal()
 	}
 
-	if ee[0].String() != "Uh3D9L13:1:Thread[Started]" {
-		t.Fatal()
-	}
-
-	if ee[1].String() != "Uh3D9L13:2:Thread[Joined]" {
+	if r.Events()[1].String() != "Uh3D9L13:2:Thread[Joined]" {
 		t.Fatal()
 	}
 }

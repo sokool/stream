@@ -37,7 +37,9 @@ type store struct {
 	all        Events
 }
 
-func NewEventStore() *store {
+var MemoryEventStore = NewMemoryEventStore()
+
+func NewMemoryEventStore() *store {
 	return &store{
 		namespaces: map[RootID]Events{},
 	}
@@ -172,7 +174,7 @@ func (s *streamStore) WriteAt(e Events, pos int64) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if !e.hasUnique(s.stream) {
+	if !e.IsUnique(s.stream) {
 		return 0, Err("wrong root")
 	}
 

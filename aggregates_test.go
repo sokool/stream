@@ -13,7 +13,7 @@ import (
 	"github.com/sokool/stream/store/sql"
 )
 
-func TestAggregates(t *testing.T) {
+func TestAggregatesWithProjection(t *testing.T) {
 	chats, err := chat.New(NewEngine(t))
 	if err != nil {
 		t.Fatal(err)
@@ -72,16 +72,17 @@ func TestAggregates_SetGet(t *testing.T) {
 	if t1.Version() != 0 {
 		t.Fatal()
 	}
-	if len(t1.Uncommitted(false)) != 0 {
+	if len(t1.Events()) != 0 {
 		t.Fatal()
 	}
-	if err = t1.Start("#general", "tom"); err != nil {
+
+	if err = t1.Run(func(t *threads.Thread) error { return t.Start("#general", "tom") }); err != nil {
 		t.Fatal(err)
 	}
 	if t1.Version() != 0 {
 		t.Fatal()
 	}
-	if len(t1.Uncommitted(false)) != 2 {
+	if t1.Events().Size() != 2 {
 		t.Fatal()
 	}
 	if err = chats.Threads.Set(t1); err != nil {
@@ -90,7 +91,7 @@ func TestAggregates_SetGet(t *testing.T) {
 	if t1.Version() != 2 {
 		t.Fatal()
 	}
-	if len(t1.Uncommitted(false)) != 0 {
+	if t1.Events().Size() != 0 {
 		t.Fatal()
 	}
 }
@@ -101,7 +102,7 @@ func NewEngine(t *testing.T) *stream.Engine {
 		EventStore: func(l stream.Printer) stream.EventStore {
 			host := os.Getenv("MYSQL_EVENT_STORE")
 			if host == "" {
-				return stream.NewEventStore()
+				return stream.NewMemoryEventStore()
 			}
 
 			es, err := sql.NewEventsStore(host, l)

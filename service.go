@@ -30,7 +30,7 @@ type Engine struct {
 func New(c *Configuration) *Engine {
 	s := Engine{
 		name:    c.Name,
-		store:   NewEventStore(),
+		store:   MemoryEventStore,
 		logger:  NewLogger(os.Stdout, "stream", true).WithTag,
 		writers: map[Type]Writer{},
 	}

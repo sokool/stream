@@ -8,71 +8,98 @@ import (
 
 // Aggregates is todo :)
 type Aggregates[R Root] struct {
-	// Type ...
-	Type Type
+	typ         Type
+	description string
 
-	// Description
-	Description string
-
-	// OnCreate creates aggregate root (business entity).
+	// onCreate creates aggregate root (business entity).
 	// It is kept in memory
-	OnCreate func(string) (R, error)
+	onCreate NewRoot[R]
 
 	// OnSession called on command dispatch when Session not exists
 	//OnSession func(R) (Session, error)
 
-	// OnLoad when all events are committed to R and state is rebuild from all previously persisted Event
-	OnLoad Command[R]
+	// onLoad when all events are committed to R and state is rebuild from all previously persisted Event
+	onLoad Command[R]
 
-	// OnRecall
-	//OnRecall func(Session, R) error
+	// onSave called just after events are persisted to database
+	onSave Command[R]
 
-	// OnSave called just after events are persisted to database
-	OnSave Command[R]
+	// onCommit when new events are committed to a Root
+	onCommit func(R, Events) error // todo not able to deny it (error)
 
-	// OnCommit when new events are committed to a Root
-	OnCommit func(R, Events) error // todo not able to deny it (error)
+	// onRecall func(Session, R) error
+	onRecall func(R) time.Time
 
-	// OnRecall
-	OnRecall func(R) time.Time
+	// onCacheCleanup when aggregate is removed from memory
+	onCacheCleanup Command[R]
 
-	// OnCacheCleanup when aggregate is removed from memory
-	OnCacheCleanup Command[R]
+	definitions []event
 
 	// Events
-	Events Schemas
+	//Events Schemas
 
-	CleanCacheAfter time.Duration
+	loadEventsInChunks int
 
-	//todo think about it
-	//EventSourced bool
+	// store
+	store EventStore
 
-	LoadEventsInChunks int
-
-	// Store
-	Store EventStore
-
-	// Writer
-	Writer Writer
+	// writer
+	writer Writer
 
 	// Logger
-	Log Printer
+	log Printer
 
 	// memory keeps created Changelog of Aggregates in order to avoid rebuilding
 	// state of each Aggregates everytime when Thread is called
-	memory *Cache[string, R]
+	memory *Cache[string, *Aggregate[R]]
 	mu     sync.Mutex
 }
 
-// todo recover panic
-func (a *Aggregates[R]) Execute(id string, command Command[R]) error {
+func NewAggregates[R Root](rf NewRoot[R], definitions []event) *Aggregates[R] {
+	rt := MustType[R]()
+	return &Aggregates[R]{
+		onCreate:           rf,
+		typ:                rt,
+		definitions:        definitions,
+		store:              MemoryEventStore,
+		memory:             NewCache[string, *Aggregate[R]](time.Minute),
+		log:                DefaultLogger(rt),
+		loadEventsInChunks: 1024,
+	}
+
+}
+
+func (a *Aggregates[R]) Get(id string) (*Aggregate[R], error) {
+	var ok bool
+	var ar *Aggregate[R]
+	var err error
+	if ar, ok = a.memory.Get(id); !ok {
+		if ar, err = NewAggregate[R](id, a.onCreate, a.definitions); err != nil {
+			return nil, err
+		}
+	}
+
+	if err = ar.ReadFrom(a.store); err != nil {
+		return nil, err
+	}
+
+	if a.onLoad != nil {
+		if err = a.onLoad(ar.root); err != nil {
+			return nil, err
+		}
+	}
+
+	return ar, a.memory.Set(id, ar)
+}
+
+func (a *Aggregates[R]) Execute(id string, c Command[R]) error {
 	for {
 		r, err := a.Get(id)
 		if err != nil {
 			return err
 		}
 
-		if err = command(r); err != nil {
+		if err = r.Run(c); err != nil {
 			return err
 		}
 
@@ -88,99 +115,35 @@ func (a *Aggregates[R]) Execute(id string, command Command[R]) error {
 	}
 }
 
-func (a *Aggregates[R]) Get(id string) (R, error) {
-	var found bool
-	var d RootID
-	var r R
+func (a *Aggregates[R]) Set(r *Aggregate[R]) error {
+	var now = time.Now()
 	var err error
+	var events Events
 
-	if err = a.init(); err != nil {
-		return r, err
-	}
-
-	if r, found = a.memory.Get(id); !found {
-		if r, err = a.OnCreate(id); err != nil {
-			return r, err
-		}
-	}
-
-	if d, err = NewRootID(r); err != nil {
-		return r, err
-	}
-
-	rw, evs, m := a.Store.ReadWriter(d), make(Events, a.LoadEventsInChunks), 0
-	for {
-		switch m, err = rw.ReadAt(evs, r.Version()); {
-
-		case err == ErrEndOfStream || err == nil:
-			if failed := a.commit(r, evs[:m]); failed != nil {
-				return r, failed
-			}
-
-			if err == nil {
-				continue
-			}
-
-			if a.OnLoad != nil {
-				if err = a.OnLoad(r); err != nil {
-					return r, err
-				}
-			}
-
-			return r, a.memory.Set(r.ID(), r)
-
-		default:
-			return r, Err("%s root read failed due %w", r, err)
-		}
-	}
-}
-
-func (a *Aggregates[R]) Set(r R) error {
-	var tn = time.Now()
-	var id RootID
-	var ee Events
-	var err error
-
-	if err = a.init(); err != nil {
+	if events, err = r.WriteTo(a.store); err != nil {
 		return err
 	}
 
-	if ee, err = NewEvents(r); err != nil || len(ee) == 0 {
-		return err
+	if events.Size() == 0 {
+		return nil
 	}
 
-	if ok := registry.exists(ee); !ok {
-		return Err("%s event schema not found, please register it before aggregate root is persisted", ee)
-	}
+	a.log("dbg %s stored in %s", events, time.Since(now))
 
-	if id = ee.Unique(); id.IsZero() { //todo error description
-		return Err("aggregate %s events required to be from one root", id)
-	}
-
-	var n int
-	switch n, err = a.Store.ReadWriter(id).WriteAt(ee, r.Version()); {
-	case err != nil:
-		return err
-
-	case n != len(ee):
-		return ErrShortWrite
-
-	}
-
-	if err = a.commit(r, ee); err != nil {
-		return err
-	}
-
-	a.Log("dbg %s stored in %s", ee, time.Since(tn))
-
-	if a.Writer != nil {
-		if _, err = a.Writer.Write(ee); err != nil {
+	if a.onCommit != nil {
+		if err = a.onCommit(r.root, events); err != nil {
 			return err
 		}
 	}
 
-	if a.OnSave != nil {
-		if err = a.OnSave(r); err != nil {
+	if a.writer != nil {
+		if _, err = a.writer.Write(events); err != nil {
+			return err
+		}
+	}
+
+	if a.onSave != nil {
+		if err = a.onSave(r.root); err != nil {
 			return err
 		}
 	}
@@ -188,96 +151,58 @@ func (a *Aggregates[R]) Set(r R) error {
 	return a.memory.Set(r.ID(), r)
 }
 
-func (a *Aggregates[R]) commit(r R, e []Event) error {
-	if len(e) == 0 {
-		return nil
-	}
-
-	// todo check if given slice of events has correct iteration of sequences, match it with current
-	//      version of R
-	for i := range e {
-		if err := r.Commit(e[i].body, e[i].createdAt); err != nil {
-			return err
-		}
-
-		//s += int64(len(e.Body))
-	}
-
-	if a.OnCommit != nil {
-		if err := a.OnCommit(r, e); err != nil {
-			return err
-		}
-	}
-	//a.version = events[len(events)-1].Sequence
-	//a.size += s
-	return nil
-}
-
-func (a *Aggregates[R]) init() (err error) {
-	if a.Type.IsZero() {
-		var r R
-		if a.Type, err = NewType(r); err != nil {
-			return
-		}
-	}
-
-	if a.Store == nil {
-		a.Store = NewEventStore()
-	}
-
-	if a.memory == nil {
-		a.memory = NewCache[string, R](a.CleanCacheAfter)
-	}
-
-	if a.LoadEventsInChunks <= 0 {
-		a.LoadEventsInChunks = 1024
-	}
-
-	return nil
-}
-
 func (a *Aggregates[R]) String() string {
-	if a.Store == nil {
-		return ""
-	}
-
 	e := make(Events, 10)
-	if _, err := a.Store.Reader(Query{Root: a.Type}).Read(e); err != nil {
+	if _, err := a.store.Reader(Query{Root: a.typ}).Read(e); err != nil {
 		return err.Error()
 	}
 
 	return e.String()
 }
 
-func (a *Aggregates[R]) Compose(with *Engine) (err error) {
-	if err = a.init(); err != nil {
-		return err
-	}
+func (a *Aggregates[R]) Compose(e *Engine) *Aggregates[R] {
+	return a.
+		WithStorage(e.store).
+		WithLogger(e.logger).
+		WithWriter(e)
+}
 
-	if _, ok := a.Store.(*store); ok {
-		a.Store = with.store
-	}
+func (a *Aggregates[R]) WithCacheInterval(d time.Duration) *Aggregates[R] {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	if err = registry.merge(a.Events, a.Type); err != nil {
-		return err
-	}
+	a.memory = NewCache[string, *Aggregate[R]](d)
+	return a
+}
 
-	if a.Log == nil {
-		a.Log = with.logger(a.Type)
-	}
+func (a *Aggregates[R]) WithStorage(es EventStore) *Aggregates[R] {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	if a.Writer != nil {
-		if err = with.register(a.Writer, a.Type); err != nil {
-			return err
-		}
-	}
-	a.Writer = with
-	a.Log("aggregate composed")
-	return nil
+	a.store = es
+	return a
+}
+
+func (a *Aggregates[R]) WithWriter(w Writer) *Aggregates[R] {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.writer = w
+	return a
+}
+
+func (a *Aggregates[R]) WithLogger(l Logger) *Aggregates[R] {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.log = l(a.typ)
+	return a
 }
 
 type Context = context.Context
 
 type Date = time.Time
+
+type NewRoot[R Root] func(string) (R, error)
 
 type expired interface{ CacheTimeout() time.Duration }

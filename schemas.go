@@ -22,7 +22,7 @@ type schemas struct {
 
 // todo instead []byte type RawEvent []byte
 func (r *schemas) decode(e *Event, b []byte) error {
-	var j event
+	var j jevent
 	if err := json.Unmarshal(b, &j); err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (r *schemas) encode(e Event) ([]byte, error) {
 		return nil, err
 	}
 
-	return json.Marshal(event{
+	return json.Marshal(jevent{
 		ID:        e.id,
 		Typ:       e.typ,
 		Root:      e.root,
@@ -94,6 +94,35 @@ func (r *schemas) merge(s Schemas, root Type) (err error) {
 			migrate:     a.OnMigrate,
 		})
 	}
+	return nil
+}
+
+func (r *schemas) set(definition []event, root Type) error {
+	if len(definition) == 0 {
+		return Err("schemas.set requires at least one event definition")
+	}
+	for _, e := range definition {
+		var n Type
+		var c Types
+		var err error
+		if n, err = NewType(e); err != nil {
+			return err
+		}
+
+		t := reflect.TypeOf(e)
+		p := t.PkgPath() + "/" + t.Name()
+		r.list = append(r.list, schema{
+			id:       uid(p),
+			event:    n.CutPrefix(root),
+			root:     root,
+			coupling: c,
+			version:  0,
+			scheme:   nil,
+			reflect:  t,
+			path:     p,
+		})
+	}
+
 	return nil
 }
 
@@ -195,7 +224,7 @@ func (s schema) isZero() bool {
 //	return s.IsStrongCoupled.IsStrong(with...)
 //}
 
-type event struct {
+type jevent struct {
 	ID       ID //todo root.id root.type event.type event.sequence
 	Typ      Type
 	Root     RootID
@@ -213,7 +242,9 @@ type event struct {
 	Version int
 }
 
-type Schemas map[any]Scheme
+type event = any
+
+type Schemas map[event]Scheme
 
 type Scheme struct {
 	Name        string

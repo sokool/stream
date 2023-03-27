@@ -2,7 +2,6 @@ package threads
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/teris-io/shortid"
@@ -31,14 +30,6 @@ type Thread struct {
 
 func New(id string) (*Thread, error) {
 	return &Thread{id: id, members: make(Members)}, nil
-}
-
-func (t *Thread) ID() string {
-	return t.id
-}
-
-func (t *Thread) Version() int64 {
-	return t.version
 }
 
 func (t *Thread) Start(channel string, p MemberID) error {
@@ -185,6 +176,10 @@ func (t *Thread) AwakeAfter() time.Time {
 	return time.Now().Add(t.recalls.after)
 }
 
+func (t *Thread) Author() string {
+	return "tomek@zklanu.pl:6361"
+}
+
 func (t *Thread) Commit(e Event, at time.Time) error {
 	if t.settings.delay > 0 {
 		time.Sleep(t.settings.delay)
@@ -219,10 +214,6 @@ func (t *Thread) Commit(e Event, at time.Time) error {
 	return nil
 }
 
-func (t *Thread) Author() string {
-	return "tomek@zklanu.pl:6361"
-}
-
 func (t *Thread) Uncommitted(clear bool) []Event {
 	defer func() {
 		if clear {
@@ -231,13 +222,6 @@ func (t *Thread) Uncommitted(clear bool) []Event {
 	}()
 
 	return t.uncommitted
-}
-
-func (t *Thread) String() string {
-	if s := len(t.uncommitted); s != 0 {
-		return fmt.Sprintf("%s.Thread#%d->%d", t.id, t.version, t.version+int64(len(t.uncommitted)))
-	}
-	return fmt.Sprintf("%s.Thread#%d", t.id, t.version)
 }
 
 func (t *Thread) commit(events ...Event) error {
@@ -256,10 +240,6 @@ var (
 type (
 	Event = any
 
-	ThreadStarted struct {
-		Moderator MemberID
-		Channel   string
-	}
 	ThreadJoined struct {
 		Participant MemberID
 	}
@@ -285,4 +265,18 @@ type (
 
 type Repository interface {
 	Get(string) (*Thread, error)
+}
+
+type ThreadStarted struct {
+	Moderator MemberID
+	Channel   string
+}
+
+func (e ThreadStarted) Description() string {
+	return "thread starts automatically, when there is a longer break between messages"
+}
+
+var Events = []Event{
+	ThreadStarted{}, ThreadJoined{}, ThreadMessage{}, ThreadLeft{},
+	ThreadKicked{}, ThreadMuted{}, ThreadClosed{},
 }

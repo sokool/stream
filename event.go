@@ -114,28 +114,20 @@ func (e *Event) Decode(b []byte) error {
 
 type Events []Event
 
-func NewEvents(r Root) (ee Events, err error) {
-	id, err := NewRootID(r)
-	if err != nil {
-		return nil, err
-	}
-
-	k := r.Version() + 1
-	for i, v := range r.Uncommitted(true) {
-		e, err := NewEvent(id, v, k+int64(i))
+func NewEvents(id RootID, version int64, events ...event) (ee Events, err error) {
+	for i := range events {
+		e, err := NewEvent(id, events[i], version+1+int64(i))
 		if err != nil {
 			return nil, err
 		}
-
 		ee = append(ee, e)
 	}
-
 	return ee, nil
 }
 
 // Unique gives RootID when all events has same RootID
 func (r Events) Unique() RootID {
-	if len(r) == 0 || !r.hasUnique(r[0].root) {
+	if len(r) == 0 || !r.IsUnique(r[0].root) {
 		return RootID{}
 	}
 
@@ -161,7 +153,10 @@ func (r Events) Unique() RootID {
 //	return o, nil
 //}
 
-func (r Events) hasUnique(id RootID) bool {
+func (r Events) IsUnique(id RootID) bool {
+	if id.IsZero() {
+		return false
+	}
 	for i := range r {
 		if id != r[i].root && !r[i].IsEmpty() {
 			return false

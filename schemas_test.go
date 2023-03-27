@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/sokool/stream/example/chat"
+	"github.com/sokool/stream/example/chat/threads"
 )
 
 func TestNewScheme(t *testing.T) {
-	threads, _ := chat.New(NewEngine(t))
+	//threads, _ := chat.New(NewEngine(t))
 
-	for i := range threads.Threads.Events {
-		fmt.Println(threads.Threads.Events[i])
+	for i := range threads.Events {
+		fmt.Println(threads.Events[i])
 	}
 
 	//x := threads.(stream.Aggregates[stream.Root])
