@@ -7,13 +7,38 @@ import (
 	"github.com/sokool/stream/example/chat/threads"
 )
 
+//func TestEvent_String(t *testing.T) {
+//	type scenario struct {
+//		description string
+//		event       stream.Event
+//		err         bool
+//	}
+//
+//	cases := []scenario{
+//		{"my first subtest", stream.NewEvent()},
+//	}
+//
+//	for _, c := range cases {
+//		t.Run(c.description, func(t *testing.T) {
+//			_, err :=
+//			if c.err && err == nil {
+//				t.Fatalf("error expected")
+//			}
+//			if !c.err && err != nil {
+//				t.Fatalf("no error expected, got %v", err)
+//			}
+//		})
+//	}
+//}
+
 func TestNewEvent(t *testing.T) {
-	id, err := stream.ParseRootID("ja5285.Thread")
+	s, err := stream.ParseSequence("ja5285.Thread")
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := threads.ThreadStarted{Moderator: "Tom", Channel: "#general"}
-	e, err := stream.NewEvent(id, m, 1)
+	id := s.ID()
+
+	e, err := stream.NewEvent(s, threads.ThreadStarted{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +48,7 @@ func TestNewEvent(t *testing.T) {
 	if e.IsEmpty() {
 		t.Fatal("expected nonempty event")
 	}
-	if e.Root() != id.Type() {
+	if e.Stream() != id {
 		t.Fatal()
 	}
 	if e.Type() != "Started" {
@@ -35,38 +60,48 @@ func TestNewEvent(t *testing.T) {
 	if e.CreatedAt().IsZero() {
 		t.Fatal()
 	}
-	if e.Sequence() != 1 {
+	if e.Sequence() != 0 {
 		t.Fatal()
 	}
-	if e.Stream() != id.ID() {
+	if e.Stream() != id {
 		t.Fatal()
 	}
+	if n := e.String(); n != "5776c729:Thread[Started]" {
+		t.Fatalf("expected 5776c729:Thread[Started] got %s", n)
+	}
+
 }
 
 func TestNewEvents(t *testing.T) {
-	r, err := stream.NewAggregate("Uh3D9L13", threads.New, threads.Events)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	s := func(t *threads.Thread) error { return t.Start("#general", "tom") }
-
-	if err = r.Run(s); err != nil {
-		t.Fatal(err)
-	}
+	e, err := stream.NewEvents(
+		stream.MustSequence[threads.Thread]("Uh3D9L13"),
+		threads.ThreadStarted{},
+		threads.ThreadJoined{},
+		threads.ThreadClosed{},
+	)
 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s := r.Events().Size(); s != 2 {
-		t.Fatalf("expected 2 events, got %d", s)
+
+	if n := e.Size(); n != 3 {
+		t.Fatalf("expected 3 events, got %d", n)
 	}
 
-	if r.Events()[0].String() != "Uh3D9L13:1:Thread[Started]" {
-		t.Fatal()
+	if s := e[0].String(); s != "497b882d:Thread[Started]#1" {
+		t.Fatalf("expected 497b882d:Thread[Started]#1 got %s", s)
 	}
 
-	if r.Events()[1].String() != "Uh3D9L13:2:Thread[Joined]" {
-		t.Fatal()
+	if s := e[1].String(); s != "497b882d:Thread[Joined]#2" {
+		t.Fatalf("expected 497b882d:Thread[Started]#1 got %s", s)
+	}
+
+	if s := e[2].String(); s != "497b882d:Thread[Closed]#3" {
+		t.Fatalf("expected 497b882d:Thread[Started]#1 got %s", s)
 	}
 }
+
+// Uh3D9L1fa:Thread
+// Uh3D9L1fa:Thread#3
+// Uh3D9L1fa:Thread[Started]#3
+// Uh3D9L1fa:Thread[Started Joined]#2

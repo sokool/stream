@@ -11,10 +11,10 @@ import (
 
 type EventsWriter struct {
 	*Connection
-	root RootID
+	root Sequence
 }
 
-func NewEventsWriter(c *Connection, id ...RootID) *EventsWriter {
+func NewEventsWriter(c *Connection, id ...Sequence) *EventsWriter {
 	w := EventsWriter{Connection: c}
 	if len(id) != 0 {
 		w.root = id[0]
@@ -45,7 +45,7 @@ func (w *EventsWriter) WriteAt(ee Events, pos int64) (n int, err error) {
 
 	for _, e := range ee {
 		var b []byte
-		if !w.root.IsZero() && !e.Belongs(w.root) {
+		if !w.root.IsEmpty() && !e.Belongs(w.root.ID()) {
 			return 0, fmt.Errorf("rootid missmatch, required %s", w.root)
 		}
 
@@ -55,8 +55,8 @@ func (w *EventsWriter) WriteAt(ee Events, pos int64) (n int, err error) {
 
 		q := `INSERT INTO aggregates(id, root, event, sequence, author, created_at, body) VALUES(?, ?, ?, ?, ?, ?, ?)`
 		_, err = tx.Exec(q,
-			e.Stream(),
-			e.Root(),
+			e.Stream().Value(),
+			e.Stream().Type(),
 			e.Type(),
 			e.Sequence(),
 			"",

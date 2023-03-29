@@ -1,24 +1,53 @@
 package stream
 
-import "encoding/json"
+import (
+	"fmt"
+	"strings"
+)
 
-type ID string
-
-func NewID(s string) (ID, error) {
-	if s == "" {
-		return "", Err("id is empty")
-	}
-	return ID(s), nil
+type ID struct {
+	uuid UUID
+	typ  Type
 }
 
-func (i ID) MarshalJSON() ([]byte, error) {
-	if i == "" {
-		return null, nil
+func NewID[T any](id string) (d ID, err error) {
+	if d.uuid = NewUUID(id); d.uuid.IsEmpty() {
+		return d, Err("id uuid is empty")
 	}
-
-	return json.Marshal(i.String())
+	if d.typ, err = NewType[T](); err != nil {
+		return d, Err("creating id type failed %w", err)
+	}
+	return d, nil
 }
 
-func (i ID) String() string {
-	return string(i)
+func ParseID(s string) (ID, error) {
+	var p []string
+	var id ID
+	if p = strings.Split(s, "."); len(p) < 2 {
+		return id, Err("parse id `%s` invalid format, please use <id>.<type> ie `N8hY13fsd.Chat`", s)
+	}
+
+	id.uuid, id.typ = NewUUID(p[0]), Type(p[1])
+
+	return id, nil
+}
+
+func (id ID) Value() string {
+	return id.uuid.String()
+}
+
+func (id ID) Type() Type {
+	return id.typ
+}
+
+func (id ID) UUID() UUID {
+	return id.uuid
+}
+
+func (id ID) IsEmpty() bool {
+	return id.uuid.IsEmpty()
+}
+
+func (id ID) String() string {
+	return fmt.Sprintf("%s:%s", id.uuid.Foo(), id.typ)
 }

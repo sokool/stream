@@ -40,7 +40,7 @@ func TestName(t *testing.T) {
 	//	CreatedAt:   time.Now(),
 	//	Author:      "",
 	//})
-	fmt.Println(e.Unique().IsZero())
+	fmt.Println(e.Unique().IsEmpty())
 	fmt.Println(e.String())
 	//s.ReadWriter(id).ReadAt(make(stream.Events, 5), 2)
 	//fmt.Println(s.Reader(q).Get(make(stream.Events, 10)))

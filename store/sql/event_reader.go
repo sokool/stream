@@ -68,8 +68,8 @@ func (e EventsQuery) String() string {
 	}
 
 	q := goqu.From("aggregates").Select("body").Order(o("created_at"))
-	if d := e.ID; d != "" {
-		q = q.Where(goqu.Ex{"id": d}).Order(o("sequence"))
+	if d := e.Stream; !d.IsEmpty() {
+		q = q.Where(goqu.Ex{"id": d.String()}).Order(o("sequence"))
 	}
 
 	if t := e.Root; t != "" {

@@ -12,6 +12,7 @@ type ReadWriterCloser interface {
 }
 
 // ReaderAt
+// todo replace pos with Sequence
 type ReaderAt interface {
 	ReadAt(e Events, pos int64) (n int, err error)
 }
@@ -39,6 +40,7 @@ type WriteCloser interface {
 }
 
 // WriterAt store event in Document starting from pos... todo
+// todo replace pos with Sequence
 type WriterAt interface {
 	WriteAt(m Events, pos int64) (n int, err error)
 }

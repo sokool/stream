@@ -12,7 +12,7 @@ type Repository interface {
 }
 
 type EventStore interface {
-	ReadWriter(RootID) ReadWriterAt
+	ReadWriter(Sequence) ReadWriterAt
 	Reader(Query) Reader
 }
 
@@ -20,7 +20,7 @@ type EventStoreFunc func(*schemas, Printer) EventStore
 
 // Query read stream events
 type Query struct {
-	ID           ID
+	Stream       UUID
 	Root         Type
 	Events       []Type
 	FromSequence int64
@@ -33,7 +33,7 @@ type Query struct {
 // todo use https://github.com/hashicorp/go-memdb
 type store struct {
 	mu         sync.Mutex
-	namespaces map[RootID]Events
+	namespaces map[ID]Events
 	all        Events
 }
 
@@ -41,14 +41,15 @@ var MemoryEventStore = NewMemoryEventStore()
 
 func NewMemoryEventStore() *store {
 	return &store{
-		namespaces: map[RootID]Events{},
+		namespaces: map[ID]Events{},
 	}
 }
 
 func (s *store) Write(e Events) (n int, err error) {
 	for i := range e {
 		s.all = append(s.all, e[i])
-		s.namespaces[e[i].root] = append(s.namespaces[e[i].root], e[i])
+		id := e[i].Stream()
+		s.namespaces[id] = append(s.namespaces[id], e[i])
 	}
 	return len(e), nil
 }
@@ -73,14 +74,14 @@ func (s *store) Reader(q Query) Reader {
 
 }
 
-func (s *store) ReadWriter(n RootID) ReadWriterAt {
+func (s *store) ReadWriter(n Sequence) ReadWriterAt {
 	return &streamStore{stream: n, store: s}
 }
 
-func (s *store) Types() []RootID {
-	var st []RootID
+func (s *store) Types() []ID {
+	var st []ID
 	for i := range s.namespaces {
-		st = append(st, s.namespaces[i][len(s.namespaces[i])-1].root)
+		st = append(st, s.namespaces[i][len(s.namespaces[i])-1].Stream())
 	}
 
 	return st
@@ -98,7 +99,7 @@ func (s *store) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.all, s.namespaces = []Event{}, make(map[RootID]Events)
+	s.all, s.namespaces = []Event{}, make(map[ID]Events)
 }
 
 func (s *store) Size() (streams int, events int) {
@@ -116,7 +117,7 @@ func (s *store) String() (t string) {
 
 type streamStore struct {
 	store  *store
-	stream RootID
+	stream Sequence
 	mu     sync.Mutex
 }
 
@@ -124,7 +125,7 @@ func (s *streamStore) ReadAt(e Events, pos int64) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	events, ok := s.store.namespaces[s.stream]
+	events, ok := s.store.namespaces[s.stream.ID()]
 	total := len(events)
 	max := len(e)
 
@@ -174,15 +175,16 @@ func (s *streamStore) WriteAt(e Events, pos int64) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if !e.IsUnique(s.stream) {
+	id := s.stream.ID()
+	if !e.IsUnique(id) {
 		return 0, Err("wrong root")
 	}
 
-	if int64(s.store.namespaces[s.stream].Size()) != pos {
+	if int64(s.store.namespaces[id].Size()) != pos {
 		return 0, ErrConcurrentWrite
 	}
 
-	s.store.namespaces[s.stream] = append(s.store.namespaces[s.stream], e...)
+	s.store.namespaces[id] = append(s.store.namespaces[id], e...)
 	s.store.all = append(s.store.all, e...)
 
 	return len(e), nil

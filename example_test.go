@@ -25,7 +25,7 @@ func ExampleAggregate_Run() {
 	fmt.Println(chat)
 
 	// Output:
-	// k8Duq81o:Thread#0
-	// k8Duq81o:Thread#0->2
-	// k8Duq81o:Thread#2
+	// 049fab7a:Thread
+	// 049fab7a:Thread->2
+	// 049fab7a:Thread#2
 }

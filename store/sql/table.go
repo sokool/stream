@@ -14,15 +14,10 @@ type Table[E Entity] struct {
 func NewTable[E Entity](c *Connection, fn NewEntity[E]) (*Table[E], error) {
 	var e E
 
-	t, err := NewType(e)
-	if err != nil {
-		return nil, err
-	}
-
 	d := &Table[E]{
 		c:      c,
 		create: fn,
-		name:   t.LowerCase().String(),
+		name:   MustType[E]().LowerCase().String(),
 	}
 
 	return d, d.prepare(e, false)

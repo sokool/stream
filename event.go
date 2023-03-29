@@ -7,13 +7,11 @@ import (
 )
 
 type Event struct {
-	id       ID
+	sequence Sequence
 	typ      Type
-	root     RootID
-	sequence int64
 
 	// body TODO
-	body any
+	body event
 
 	// meta TODO
 	meta Meta
@@ -24,45 +22,40 @@ type Event struct {
 	version int
 }
 
-func NewEvent(id RootID, v any, sequence int64) (e Event, err error) {
+func NewEvent(s Sequence, e event) (Event, error) {
 	var t Type
-	if t, err = NewType(v); err != nil {
-		return e, nil
-	}
-
-	if sequence <= 0 {
-		return e, Err("invalid event sequence")
+	var err error
+	if t, err = NewType(e); err != nil {
+		return Event{}, nil
 	}
 
 	return Event{
-		id:        ID(uid(fmt.Sprintf("%s.%s.%d", id, e.typ, sequence))),
-		root:      id,
-		typ:       t.CutPrefix(id.Type()),
-		sequence:  sequence,
-		body:      v,
+		typ:       t.CutPrefix(s.Type()),
+		sequence:  s,
+		body:      e,
 		meta:      Meta{},
 		createdAt: time.Now(),
 	}, nil
 }
 
-func (e *Event) Stream() ID {
-	return e.root.id
-}
-
-func (e *Event) Root() Type {
-	return e.root.typ
+func (e *Event) ID() UUID {
+	return e.sequence.UUID()
 }
 
 func (e *Event) Type() Type {
 	return e.typ
 }
 
+func (e *Event) Stream() ID {
+	return e.sequence.ID()
+}
+
 func (e *Event) Sequence() int64 {
-	return e.sequence
+	return e.sequence.Number()
 }
 
 func (e *Event) Name() string {
-	return fmt.Sprintf("%s%s", e.root.typ, e.typ)
+	return fmt.Sprintf("%s%s", e.Stream().Type(), e.typ)
 }
 
 func (e *Event) Body() any {
@@ -73,22 +66,25 @@ func (e *Event) CreatedAt() time.Time {
 	return e.createdAt
 }
 
-func (e *Event) Belongs(to RootID) bool {
-	return e.root == to
+func (e *Event) Belongs(to ID) bool {
+	return e.sequence.ID() == to
 }
 
 func (e *Event) Correlate(with Event) *Event {
-	e.meta.Correlation = with.id
+	e.meta.Correlation = with.ID()
 	return e
 }
 
 func (e *Event) Respond(to Event) *Event {
-	e.meta.Correlation, e.meta.Causation = to.meta.Correlation, to.id
+	e.meta.Correlation, e.meta.Causation = to.meta.Correlation, to.ID()
 	return e
 }
 
 func (e *Event) String() string {
-	return fmt.Sprintf("%s:%d:%s[%s]", e.root.id, e.sequence, e.root.typ, e.typ)
+	if e.sequence.Number() == 0 {
+		return fmt.Sprintf("%s[%s]", e.Stream(), e.Type())
+	}
+	return fmt.Sprintf("%s[%s]#%d", e.Stream(), e.Type(), e.Sequence())
 }
 
 func (e *Event) GoString() string {
@@ -101,7 +97,7 @@ func (e *Event) GoString() string {
 }
 
 func (e *Event) IsEmpty() bool {
-	return e.id == ""
+	return e.sequence.IsEmpty()
 }
 
 func (e *Event) Encode() ([]byte, error) {
@@ -114,9 +110,10 @@ func (e *Event) Decode(b []byte) error {
 
 type Events []Event
 
-func NewEvents(id RootID, version int64, events ...event) (ee Events, err error) {
+func NewEvents(s Sequence, events ...event) (ee Events, err error) {
 	for i := range events {
-		e, err := NewEvent(id, events[i], version+1+int64(i))
+		s = s.Next()
+		e, err := NewEvent(s, events[i])
 		if err != nil {
 			return nil, err
 		}
@@ -125,13 +122,13 @@ func NewEvents(id RootID, version int64, events ...event) (ee Events, err error)
 	return ee, nil
 }
 
-// Unique gives RootID when all events has same RootID
-func (r Events) Unique() RootID {
-	if len(r) == 0 || !r.IsUnique(r[0].root) {
-		return RootID{}
+// Unique gives Sequence when all events has same Sequence
+func (r Events) Unique() ID {
+	if len(r) == 0 || !r.IsUnique(r[0].Stream()) {
+		return ID{}
 	}
 
-	return r[0].root
+	return r[0].Stream()
 }
 
 //func (r Events) Shrink(f Filter) (Events, error) {
@@ -153,12 +150,12 @@ func (r Events) Unique() RootID {
 //	return o, nil
 //}
 
-func (r Events) IsUnique(id RootID) bool {
-	if id.IsZero() {
+func (r Events) IsUnique(id ID) bool {
+	if id.IsEmpty() {
 		return false
 	}
 	for i := range r {
-		if id != r[i].root && !r[i].IsEmpty() {
+		if id != r[i].Stream() && !r[i].IsEmpty() {
 			return false
 		}
 	}
@@ -167,7 +164,7 @@ func (r Events) IsUnique(id RootID) bool {
 
 func (r Events) String() string {
 	var s string
-	if id := r.Unique(); !id.IsZero() {
+	if id := r.Unique(); !id.IsEmpty() {
 		s = id.String()
 		var t []string
 		var d int64
@@ -175,10 +172,10 @@ func (r Events) String() string {
 			if r[i].IsEmpty() {
 				continue
 			}
-			t, d = append(t, r[i].typ.String()), r[i].sequence
+			t, d = append(t, r[i].typ.String()), r[i].Sequence()
 		}
 
-		return fmt.Sprintf("%s:%d:%s%v", id.id, d, id.typ, t)
+		return fmt.Sprintf("%s%v#%d", id, t, d)
 	}
 
 	for i := range r {
@@ -195,7 +192,7 @@ func (r Events) Size() int {
 	return len(r)
 }
 
-func (r Events) AreEmpty() bool {
+func (r Events) IsEmpty() bool {
 	return r.Size() == 0
 }
 
@@ -208,9 +205,9 @@ func (r Events) Last() Event {
 
 }
 
-func (r Events) Hash() string {
-	if r.AreEmpty() {
-		return ""
+func (r Events) UUID() UUID {
+	if r.IsEmpty() {
+		return UUID{}
 	}
-	return uid(r.String())
+	return NewUUID(r.String())
 }

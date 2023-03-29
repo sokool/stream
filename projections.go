@@ -48,9 +48,8 @@ type Projections[D Document] struct {
 
 func (p *Projections[D]) init() error {
 	if p.Name.IsZero() {
-		var v D
 		var err error
-		if p.Name, err = NewType(v); err != nil {
+		if p.Name, err = NewType[D](); err != nil {
 			return err
 		}
 	}

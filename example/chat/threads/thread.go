@@ -32,6 +32,10 @@ func New(id string) (*Thread, error) {
 	return &Thread{id: id, members: make(Members)}, nil
 }
 
+func (t *Thread) ID() string {
+	return t.id
+}
+
 func (t *Thread) Start(channel string, p MemberID) error {
 	switch {
 	case t.started:

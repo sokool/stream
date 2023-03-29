@@ -9,38 +9,58 @@ import (
 
 type Type string
 
-func NewType(v any) (Type, error) {
+func NewType[T any](v ...T) (Type, error) {
 	var s string
+	var r reflect.Type
 
-	t := reflect.TypeOf(v)
-	s = t.Name()
-	switch t.Kind() {
+	if len(v) != 0 {
+		switch x := any(v[0]).(type) {
+		case string:
+			r = reflect.TypeOf(x)
+		default:
+			r = reflect.TypeOf(x)
+		}
+	} else {
+		var t T
+		r = reflect.TypeOf(t)
+		s = r.Name()
+	}
+
+	switch r.Kind() {
 	case reflect.Pointer:
-		s = t.Elem().Name()
+		s = r.Elem().Name()
 	case reflect.String:
-		s = v.(string)
+		if s = "string"; len(v) != 0 {
+			s = any(v[0]).(string)
+		}
 	default:
-
+		s = r.Name()
 	}
 
-	if s = strings.ReplaceAll(strings.TrimSpace(s), " ", ""); len(s) == 0 {
-		return "", Err("name can not be empty")
+	if n, ok := Type(s).reformat(); ok {
+		return n, nil
 	}
 
-	return Type(strings.Title(s)), nil
+	return "", Err("type can not be empty string")
 }
 
-func MustType[T any]() Type {
-	var v T
-	t, err := NewType(v)
+func MustType[T any](v ...T) Type {
+	t, err := NewType[T](v...)
 	if err != nil {
 		panic(err)
 	}
 	return t
 }
 
-func (t Type) Hash() string {
-	return uid(t.String())
+func (t Type) Rename(s string) Type {
+	if v, ok := Type(s).reformat(); ok {
+		return v
+	}
+	return t
+}
+
+func (t Type) Hash() UUID {
+	return NewUUID(t.String())
 }
 
 func (t Type) String() string {
@@ -64,6 +84,35 @@ func (t Type) LowerCase() Type {
 	return Type(strings.ToLower(string(t)))
 }
 
+func (t Type) reformat() (Type, bool) {
+	s := string(t)
+	if s = strings.ReplaceAll(s, " ", ""); len(s) == 0 {
+		return "", false
+	}
+
+	return Type(strings.Title(s)), true
+}
+
 func uid(s string) string {
 	return uuid.NewSHA1(uuid.NameSpaceDNS, []byte(s)).String()
+}
+
+type UUID struct{ id uuid.UUID }
+
+func NewUUID(s string) UUID {
+	if s == "" {
+		return UUID{}
+	}
+	return UUID{uuid.NewSHA1(uuid.NameSpaceDNS, []byte(s))}
+}
+
+func (u UUID) String() string {
+	return u.id.String()
+}
+
+func (u UUID) Foo() string {
+	return u.String()[:8]
+}
+func (u UUID) IsEmpty() bool {
+	return u.id.Version() == 0
 }

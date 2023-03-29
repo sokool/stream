@@ -20,12 +20,12 @@ func NewEventsStore(host string, l Printer) (*EventsStore, error) {
 	return &e, nil
 }
 
-func (r *EventsStore) ReadWriter(n RootID) ReadWriterAt {
+func (r *EventsStore) ReadWriter(s Sequence) ReadWriterAt {
 	return struct {
 		*EventsReader
 		*EventsWriter
 	}{
-		NewEventsReader(r.Connection, Query{ID: n.ID(), Root: n.Type()}),
+		NewEventsReader(r.Connection, Query{Stream: s.ID().UUID(), Root: s.Type()}),
 		NewEventsWriter(r.Connection),
 	}
 }

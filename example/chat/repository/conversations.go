@@ -33,11 +33,11 @@ type Conversation struct {
 
 func NewConversation(m stream.Events) (*Conversation, error) {
 	id := m.Unique()
-	if id.IsZero() {
+	if id.IsEmpty() {
 		return nil, nil
 	}
 
-	return &Conversation{Id: id.Hash()}, nil
+	return &Conversation{Id: id.Value()}, nil
 }
 
 func (c *Conversation) ID() string { return c.Id }

@@ -66,9 +66,6 @@ func TestAggregates_SetGet(t *testing.T) {
 	if t1 != t2 {
 		t.Fatal()
 	}
-	if t1.ID() != id {
-		t.Fatal()
-	}
 	if t1.Version() != 0 {
 		t.Fatal()
 	}

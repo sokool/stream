@@ -7,10 +7,9 @@ import (
 
 type Aggregate[R Root] struct {
 	mu          sync.Mutex
-	id          RootID
-	version     int64
-	uncommitted Events
 	root        R
+	sequence    Sequence
+	uncommitted Events
 }
 
 func NewAggregate[R Root](id string, nr NewRoot[R], definitions []event) (*Aggregate[R], error) {
@@ -20,7 +19,7 @@ func NewAggregate[R Root](id string, nr NewRoot[R], definitions []event) (*Aggre
 		return nil, Err("new aggregate requires non-nil NewRoot[R]")
 	}
 
-	if a.id, err = NewRootID[R](id); err != nil {
+	if a.sequence, err = NewSequence[R](id); err != nil {
 		return nil, Err("new aggregate id failed %w", err)
 	}
 
@@ -28,7 +27,7 @@ func NewAggregate[R Root](id string, nr NewRoot[R], definitions []event) (*Aggre
 		return nil, Err("new aggregate instance failed %w", err)
 	}
 
-	if err = registry.set(definitions, a.id.typ); err != nil {
+	if err = registry.set(definitions, a.sequence.Type()); err != nil {
 		return nil, Err("new aggregate events definition registration failed %w", err)
 	}
 
@@ -44,28 +43,28 @@ func MustAggregate[R Root](id string, nr NewRoot[R], definitions []event) *Aggre
 }
 
 func (a *Aggregate[R]) ID() string {
-	return a.id.ID().String()
+	return a.sequence.ID().Value()
 }
 
 func (a *Aggregate[R]) Name() string {
-	return a.id.Type().String()
+	return a.sequence.Type().String()
 }
 
 func (a *Aggregate[R]) Version() int64 {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	return a.version
+	return a.sequence.Number()
 }
 
 func (a *Aggregate[R]) ReadFrom(es EventStore) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	var rw, events, n = es.ReadWriter(a.id), make(Events, 1024), 0
+	var rw, events, n = es.ReadWriter(a.sequence), make(Events, 1024), 0
 	var err error
 	for {
-		switch n, err = rw.ReadAt(events, a.version); {
+		switch n, err = rw.ReadAt(events, a.sequence.Number()); {
 
 		case err == ErrEndOfStream || err == nil:
 			if failed := a.commit(events[:n]); failed != nil {
@@ -79,7 +78,7 @@ func (a *Aggregate[R]) ReadFrom(es EventStore) error {
 			return nil
 
 		default:
-			return Err("%s root read failed due %w", a.id, err)
+			return Err("%s root read failed due %w", a.sequence, err)
 		}
 	}
 }
@@ -91,20 +90,19 @@ func (a *Aggregate[R]) Run(c Command[R]) error {
 
 	var err error
 	if a.uncommitted.Size() > 0 {
-		return Err("write events before another command in %s aggregate ", a.id)
+		return Err("write events before another command in %s aggregate ", a.sequence)
 	}
 
 	if err = c(a.root); err != nil {
 		return err
 	}
 
-	for i, v := range a.root.Uncommitted(true) {
-		e, err := NewEvent(a.id, v, a.version+1+int64(i))
-		if err != nil {
-			return err
-		}
-		a.uncommitted = append(a.uncommitted, e)
+	var e Events
+	if e, err = NewEvents(a.sequence, a.root.Uncommitted(true)...); err != nil {
+		return err
 	}
+
+	a.uncommitted = e
 
 	return nil
 }
@@ -128,11 +126,11 @@ func (a *Aggregate[R]) WriteTo(es EventStore) (Events, error) {
 		return nil, Err("%s event schema not found, please register it in stream.Aggregates.Events", a.uncommitted)
 	}
 
-	if !a.uncommitted.IsUnique(a.id) {
-		return nil, Err("aggregate %s events required to be from one root", a.id)
+	if !a.uncommitted.IsUnique(a.sequence.ID()) {
+		return nil, Err("aggregate %s events required to be from one root", a.sequence)
 	}
 
-	switch n, err = es.ReadWriter(a.id).WriteAt(a.uncommitted, a.version); {
+	switch n, err = es.ReadWriter(a.sequence).WriteAt(a.uncommitted, a.sequence.Number()); {
 	case err != nil:
 		return nil, err
 	case n != len(a.uncommitted):
@@ -147,9 +145,9 @@ func (a *Aggregate[R]) String() string {
 	defer a.mu.Unlock()
 
 	if s := len(a.uncommitted); s != 0 {
-		return fmt.Sprintf("%s#%d->%d", a.id, a.version, a.version+int64(len(a.uncommitted)))
+		return fmt.Sprintf("%s->%d", a.sequence, a.sequence.Number()+int64(len(a.uncommitted)))
 	}
-	return fmt.Sprintf("%s#%d", a.id, a.version)
+	return a.sequence.String()
 }
 
 func (a *Aggregate[R]) commit(e []Event) error {
@@ -163,7 +161,7 @@ func (a *Aggregate[R]) commit(e []Event) error {
 		if err := a.root.Commit(e[i].body, e[i].createdAt); err != nil {
 			return err
 		}
-		a.version++
+		a.sequence = a.sequence.Next()
 	}
 
 	return nil

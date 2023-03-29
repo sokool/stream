@@ -27,8 +27,8 @@ func (r *schemas) decode(e *Event, b []byte) error {
 		return err
 	}
 
-	e.id, e.typ, e.root, e.sequence, e.meta = j.ID, j.Typ, j.Root, j.Sequence, j.Meta
-	e.createdAt, e.version = j.CreatedAt, j.Version
+	//e.sequence, e.typ, e.root, e.sequence, e.meta = j.ID, j.Typ, j.Root, j.Sequence, j.Meta
+	//e.createdAt, e.version = j.CreatedAt, j.Version
 
 	s := r.get(*e)
 	if s.isZero() {
@@ -57,10 +57,10 @@ func (r *schemas) encode(e Event) ([]byte, error) {
 	}
 
 	return json.Marshal(jevent{
-		ID:        e.id,
-		Typ:       e.typ,
-		Root:      e.root,
-		Sequence:  e.sequence,
+		ID:        e.ID(),
+		Typ:       e.Type(),
+		Root:      e.Stream(),
+		Sequence:  e.Sequence(),
 		Body:      b,
 		Meta:      e.meta,
 		CreatedAt: e.createdAt,
@@ -225,9 +225,9 @@ func (s schema) isZero() bool {
 //}
 
 type jevent struct {
-	ID       ID //todo root.id root.type event.type event.sequence
+	ID       UUID //todo root.id root.type event.type event.sequence
 	Typ      Type
-	Root     RootID
+	Root     ID
 	Sequence int64
 
 	// body TODO
