@@ -160,11 +160,12 @@ func (a *Aggregates[R]) String() string {
 	return e.String()
 }
 
-func (a *Aggregates[R]) Compose(e *Engine) *Aggregates[R] {
-	return a.
+func (a *Aggregates[R]) Compose(e *Engine) error {
+	a.
 		WithStorage(e.store).
 		WithLogger(e.logger).
 		WithWriter(e)
+	return nil
 }
 
 func (a *Aggregates[R]) WithCacheInterval(d time.Duration) *Aggregates[R] {
