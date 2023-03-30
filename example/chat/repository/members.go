@@ -10,13 +10,8 @@ import (
 
 type Members = stream.Projections[*Member]
 
-func NewMembers(se *stream.Engine) (*Members, error) {
-	var m Members
-	var err error
-	if m.Store, err = storage(NewMember); err != nil {
-		return nil, err
-	}
-	return &m, m.Compose(se)
+func NewMembers() *Members {
+	return stream.NewProjections(NewMember)
 }
 
 type Member struct {

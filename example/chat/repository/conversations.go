@@ -11,15 +11,8 @@ import (
 
 type Conversations = stream.Projections[*Conversation]
 
-func NewConversations(se *stream.Engine) (*Conversations, error) {
-	var c Conversations
-	var err error
-
-	if c.Store, err = storage(NewConversation); err != nil {
-		return nil, err
-	}
-
-	return &c, c.Compose(se)
+func NewConversations() *Conversations {
+	return stream.NewProjections(NewConversation)
 }
 
 type Conversation struct {

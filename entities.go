@@ -13,7 +13,7 @@ type Entity interface {
 type NewEntity[E Entity] func(Events) (E, error)
 
 type Entities[E Entity] interface {
-	Create(Events) (E, error)
+	//Create(Events) (E, error)
 	One(E) error // todo One(Events) (E, error)
 	Read([]E, []byte) error
 	Update(...E) error
@@ -22,19 +22,13 @@ type Entities[E Entity] interface {
 
 // todo use https://github.com/hashicorp/go-memdb
 type entities[E Entity] struct {
-	create NewEntity[E]
-	store  map[string][]byte
+	store map[string][]byte
 }
 
-func NewEntities[E Entity](fn NewEntity[E]) Entities[E] {
+func NewEntities[E Entity]() Entities[E] {
 	return &entities[E]{
-		store:  make(map[string][]byte),
-		create: fn,
+		store: make(map[string][]byte),
 	}
-}
-
-func (r *entities[E]) Create(e Events) (E, error) {
-	return r.create(e)
 }
 
 func (r *entities[E]) One(d E) error {

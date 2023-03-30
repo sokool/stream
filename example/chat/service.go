@@ -13,16 +13,11 @@ type Service struct {
 }
 
 func New(se *stream.Engine) (*Service, error) {
-	var s = Service{Stream: se}
-	var err error
-	if s.Threads, err = repository.NewThreads(se); err != nil {
-		return nil, err
+	s := Service{
+		Stream:        se,
+		Threads:       repository.NewThreads(),
+		Members:       repository.NewMembers(),
+		Conversations: repository.NewConversations(),
 	}
-	if s.Members, err = repository.NewMembers(se); err != nil {
-		return nil, err
-	}
-	if s.Conversations, err = repository.NewConversations(se); err != nil {
-		return nil, err
-	}
-	return &s, nil
+	return &s, se.Compose(s.Threads, s.Members, s.Conversations)
 }

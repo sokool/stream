@@ -11,19 +11,23 @@ type Document interface {
 	Committer
 }
 
+type NewDocument[D Document] func(Events) (D, error)
+
 type Projections[D Document] struct {
-	// Name is unique identifier of events handler
-	Name Type
+	mu sync.Mutex
 
-	// Description
-	Description string
+	// typ is unique identifier of events handler
+	typ Type
 
-	// OnEvents
+	// description
+	//description string
+
+	// onCreate
 	// or Entities must be set
-	OnEvents func(Events) (D, error)
+	onCreate NewDocument[D]
 
-	// OnFilter
-	OnFilter Filter
+	// onFilter
+	//onFilter Filter
 
 	// OnEvent
 	//OnEvent AppenderFunc
@@ -31,35 +35,32 @@ type Projections[D Document] struct {
 	// OnBuild
 	//OnBuild Receiver
 
-	// BuildOnStart
-	BuildOnStart bool
+	// buildOnStart
+	//buildOnStart bool
 
-	// BuildLogRefresh
-	BuildLogRefresh time.Duration
+	// buildLogRefresh
+	//buildLogRefresh time.Duration
 
 	// Logger
-	Log Printer
+	log Printer
 
-	Store Entities[D]
-
-	mu      sync.Mutex
+	Store   Entities[D]
 	blocked error
 }
 
+func NewProjections[D Document](nd NewDocument[D]) *Projections[D] {
+	dt := MustType[D]()
+	return &Projections[D]{
+		typ:      dt,
+		onCreate: nd,
+		log:      DefaultLogger(dt),
+		Store:    NewEntities[D](),
+	}
+}
+
 func (p *Projections[D]) init() error {
-	if p.Name.IsZero() {
-		var err error
-		if p.Name, err = NewType[D](); err != nil {
-			return err
-		}
-	}
-
-	if p.OnEvents == nil && p.Store == nil {
-		return Err("%s projection requires Document CRUD implementation or OnEvents func", p.Name)
-	}
-
-	if p.Log == nil {
-		p.Log = DefaultLogger(p.Name)
+	if p.onCreate == nil && p.Store == nil {
+		return Err("%s projection requires Document CRUD implementation or OnEvents func", p.typ)
 	}
 
 	//p.log("initialized queue size: %d, delivery timeout: %s", p.EventsQueueSize, p.EventsDeliveryTimeout)
@@ -69,10 +70,6 @@ func (p *Projections[D]) init() error {
 func (p *Projections[D]) Write(e Events) (n int, err error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-
-	if err = p.init(); err != nil {
-		return 0, err
-	}
 
 	if n = len(e); n == 0 {
 		return
@@ -93,6 +90,14 @@ func (p *Projections[D]) Write(e Events) (n int, err error) {
 	return n, p.write(e)
 }
 
+func (p *Projections[D]) WithLogger(l Logger) *Projections[D] {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.log = l(p.typ)
+	return p
+}
+
 func (p *Projections[D]) write(e Events) (err error) {
 	//if e, err = e.Shrink(h.OnFilter); err != nil {
 	//	return 0, err
@@ -108,14 +113,15 @@ func (p *Projections[D]) write(e Events) (err error) {
 	//}
 
 	var d D
-	if p.OnEvents != nil {
-		if d, err = p.OnEvents(e); err != nil {
+	if p.onCreate != nil {
+		if d, err = p.onCreate(e); err != nil {
 			return err
 		}
 	}
 
 	if p.Store != nil {
-		d, err = p.Store.Create(e)
+		d, err = p.onCreate(e)
+		//d, err = p.Store.Create(e)
 		if err != nil || reflect.ValueOf(d).IsNil() { //todo i do now how to check generic D is nil
 			return err
 		}
@@ -138,23 +144,13 @@ func (p *Projections[D]) write(e Events) (err error) {
 	return nil
 }
 
-func (p *Projections[D]) log(m string, a ...interface{}) {
-	if p.Log == nil {
-		return
-	}
-
-	p.Log(m, a...)
-}
-
 func (p *Projections[D]) Compose(in *Engine) error {
-	if err := p.init(); err != nil {
+	if err := in.register(p, p.typ); err != nil {
 		return err
 	}
 
-	if err := in.register(p, p.Name); err != nil {
-		return err
-	}
-	p.Log("projection composed")
+	p.WithLogger(in.logger)
+	p.log("projection composed")
 	return nil
 }
 
