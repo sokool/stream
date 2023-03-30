@@ -80,8 +80,8 @@ func (t Type) CutPrefix(of Type) Type {
 	return Type(strings.Replace(a, b, "", 1))
 }
 
-func (t Type) LowerCase() Type {
-	return Type(strings.ToLower(string(t)))
+func (t Type) ToLower() string {
+	return strings.ToLower(string(t))
 }
 
 func (t Type) reformat() (Type, bool) {
@@ -113,6 +113,11 @@ func (u UUID) String() string {
 func (u UUID) Foo() string {
 	return u.String()[:8]
 }
+
+func (u UUID) Is(n string) bool {
+	return u.id.String() == n
+}
+
 func (u UUID) IsEmpty() bool {
 	return u.id.Version() == 0
 }

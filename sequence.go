@@ -14,18 +14,17 @@ type Sequence struct {
 	number int64
 }
 
-func NewSequence[T any](id string) (Sequence, error) {
-	var rid Sequence
-	var err error
-
-	if rid.id, err = NewID[T](id); err != nil {
-		return rid, Err("invalid id string %w", err)
+func NewSequence[T Root](id string, n ...int64) (s Sequence, err error) {
+	if s.id, err = NewID[T](id); err != nil {
+		return s, Err("invalid id string %w", err)
 	}
-
-	return rid, nil
+	if len(n) > 0 {
+		s.number = n[0]
+	}
+	return s, nil
 }
 
-func MustSequence[T any](id string) Sequence {
+func MustSequence[T Root](id string) Sequence {
 	rid, err := NewSequence[T](id)
 	if err != nil {
 		panic(err)
@@ -112,6 +111,10 @@ func (s Sequence) String() string {
 		return s.id.String()
 	}
 	return fmt.Sprintf("%s#%d", s.id, s.number)
+}
+
+func (s Sequence) Is(t string) bool {
+	return s.String() == t
 }
 
 func (s Sequence) IsEmpty() bool {

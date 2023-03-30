@@ -17,7 +17,7 @@ func NewTable[E Entity](c *Connection, fn NewEntity[E]) (*Table[E], error) {
 	d := &Table[E]{
 		c:      c,
 		create: fn,
-		name:   MustType[E]().LowerCase().String(),
+		name:   MustType[E]().ToLower(),
 	}
 
 	return d, d.prepare(e, false)

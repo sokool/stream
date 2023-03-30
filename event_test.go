@@ -74,7 +74,7 @@ func TestNewEvent(t *testing.T) {
 
 func TestNewEvents(t *testing.T) {
 	e, err := stream.NewEvents(
-		stream.MustSequence[threads.Thread]("Uh3D9L13"),
+		stream.MustSequence[*threads.Thread]("Uh3D9L13"),
 		threads.ThreadStarted{},
 		threads.ThreadJoined{},
 		threads.ThreadClosed{},
