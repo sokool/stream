@@ -6,29 +6,23 @@ import (
 )
 
 type Table[E Entity] struct {
-	name   string
-	create NewEntity[E]
-	c      *Connection
+	*Connection
+	name string
 }
 
-func NewTable[E Entity](c *Connection, fn NewEntity[E]) (*Table[E], error) {
+func NewTable[E Entity](c *Connection) (*Table[E], error) {
 	var e E
 
 	d := &Table[E]{
-		c:      c,
-		create: fn,
-		name:   MustType[E]().ToLower(),
+		c,
+		MustType[E]().ToLower(),
 	}
 
 	return d, d.prepare(e, false)
 }
 
-func (r *Table[E]) Create(e Events) (E, error) {
-	return r.create(e)
-}
-
 func (r *Table[E]) One(e E) error {
-	db := r.c.gdb.Table(r.name).Where("id = ?", e.ID()).First(e)
+	db := r.gdb.Table(r.name).Where("id = ?", e.ID()).First(e)
 	if err := db.Error; err != gorm.ErrRecordNotFound && err != nil {
 		return err
 	}
@@ -47,11 +41,11 @@ func (r *Table[E]) Update(ee ...E) (err error) {
 	}
 
 	if len(ee) == 1 {
-		return r.c.gdb.Table(r.name).Save(ee[0]).Error
+		return r.gdb.Table(r.name).Save(ee[0]).Error
 	}
 
 	var tx *gorm.DB
-	if tx = r.c.gdb.Table(r.name).Begin(); tx.Error != nil {
+	if tx = r.gdb.Table(r.name).Begin(); tx.Error != nil {
 		return tx.Error
 	}
 
@@ -76,7 +70,7 @@ func (r *Table[E]) Delete(ee ...E) error {
 }
 
 func (r *Table[E]) prepare(e E, drop bool) error {
-	db := r.c.gdb.
+	db := r.gdb.
 		Set("CHARACTER", "utf8mb4,utf8").
 		Set("collation", "utf8mb4_unicode_ci").
 		Table(r.name)

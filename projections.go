@@ -48,13 +48,16 @@ type Projections[D Document] struct {
 	blocked error
 }
 
-func NewProjections[D Document](nd NewDocument[D]) *Projections[D] {
+func NewProjections[D Document](nd NewDocument[D], e ...Entities[D]) *Projections[D] {
 	dt := MustType[D]()
+	if len(e) == 0 {
+		e = append(e, NewMemoryEntities[D]())
+	}
 	return &Projections[D]{
 		typ:      dt,
 		onCreate: nd,
 		log:      DefaultLogger(dt),
-		Store:    NewEntities[D](),
+		Store:    e[0],
 	}
 }
 
@@ -98,6 +101,14 @@ func (p *Projections[D]) WithLogger(l Logger) *Projections[D] {
 	return p
 }
 
+func (p *Projections[D]) Storage(n Entities[D]) *Projections[D] {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.Store = n
+	return p
+}
+
 func (p *Projections[D]) write(e Events) (err error) {
 	//if e, err = e.Shrink(h.OnFilter); err != nil {
 	//	return 0, err
@@ -121,7 +132,7 @@ func (p *Projections[D]) write(e Events) (err error) {
 
 	if p.Store != nil {
 		d, err = p.onCreate(e)
-		//d, err = p.Store.Create(e)
+		//d, err = p.Storage.Create(e)
 		if err != nil || reflect.ValueOf(d).IsNil() { //todo i do now how to check generic D is nil
 			return err
 		}

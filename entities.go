@@ -10,8 +10,6 @@ type Entity interface {
 	Version() int64
 }
 
-type NewEntity[E Entity] func(Events) (E, error)
-
 type Entities[E Entity] interface {
 	//Create(Events) (E, error)
 	One(E) error // todo One(Events) (E, error)
@@ -20,12 +18,14 @@ type Entities[E Entity] interface {
 	Delete(...E) error
 }
 
+type NewEntities[E Entity] func() Entities[E]
+
 // todo use https://github.com/hashicorp/go-memdb
 type entities[E Entity] struct {
 	store map[string][]byte
 }
 
-func NewEntities[E Entity]() Entities[E] {
+func NewMemoryEntities[E Entity]() Entities[E] {
 	return &entities[E]{
 		store: make(map[string][]byte),
 	}
