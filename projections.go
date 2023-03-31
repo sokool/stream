@@ -93,7 +93,7 @@ func (p *Projections[D]) Write(e Events) (n int, err error) {
 	return n, p.write(e)
 }
 
-func (p *Projections[D]) WithLogger(l Logger) *Projections[D] {
+func (p *Projections[D]) Logger(l Logger) *Projections[D] {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -132,7 +132,6 @@ func (p *Projections[D]) write(e Events) (err error) {
 
 	if p.Store != nil {
 		d, err = p.onCreate(e)
-		//d, err = p.Storage.Create(e)
 		if err != nil || reflect.ValueOf(d).IsNil() { //todo i do now how to check generic D is nil
 			return err
 		}
@@ -160,7 +159,7 @@ func (p *Projections[D]) Compose(in *Engine) error {
 		return err
 	}
 
-	p.WithLogger(in.logger)
+	p.Logger(in.logger)
 	p.log("projection composed")
 	return nil
 }
