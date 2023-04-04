@@ -49,5 +49,5 @@ func (id ID) IsEmpty() bool {
 }
 
 func (id ID) String() string {
-	return fmt.Sprintf("%s:%s", id.uuid.Foo(), id.typ)
+	return fmt.Sprintf("%s.%s", id.uuid.Foo(), id.typ)
 }

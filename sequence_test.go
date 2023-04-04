@@ -22,15 +22,15 @@ func TestNewSequence(t *testing.T) {
 		{
 			description: "test id with no number",
 			id:          "test",
-			uuid:        "7f549bf5-988b-5826-9d08-59beec898623",
-			string:      "4be0643f:Thread",
+			uuid:        "d6a351d3-b2bc-52a3-b492-2b23494e48f9",
+			string:      "4be0643f.Thread",
 		},
 		{
 			description: "1hag8gh id with number 2",
 			id:          "1hag8gh",
 			number:      2,
-			uuid:        "3e0d7469-3017-552c-a6fe-b8c1242523a3",
-			string:      "fcee15e0:Thread#2",
+			uuid:        "15be7328-2770-59f5-8734-554bf64d098e",
+			string:      "fcee15e0.Thread#2",
 		},
 	}
 

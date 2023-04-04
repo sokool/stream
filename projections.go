@@ -42,7 +42,7 @@ type Projections[D Document] struct {
 	//buildLogRefresh time.Duration
 
 	// Logger
-	log Printer
+	log Logger
 
 	Store   Entities[D]
 	blocked error
@@ -56,7 +56,7 @@ func NewProjections[D Document](nd NewDocument[D], e ...Entities[D]) *Projection
 	return &Projections[D]{
 		typ:      dt,
 		onCreate: nd,
-		log:      DefaultLogger(dt),
+		log:      newLogger(""),
 		Store:    e[0],
 	}
 }
@@ -87,17 +87,17 @@ func (p *Projections[D]) Write(e Events) (n int, err error) {
 			p.blocked = err
 			return
 		}
-		p.log("DBG %s delivered in %s", e, time.Since(t))
+		p.log("dbg %s delivered in %s", e, time.Since(t))
 	}(time.Now())
 
 	return n, p.write(e)
 }
 
-func (p *Projections[D]) Logger(l Logger) *Projections[D] {
+func (p *Projections[D]) Logger(l NewLogger) *Projections[D] {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.log = l(p.typ)
+	p.log = l(p.typ.String())
 	return p
 }
 
@@ -181,11 +181,11 @@ func (p *Projections[D]) Compose(in *Engine) error {
 //	store      EventStore
 //	schemas    *Schemas
 //	registered map[string]*Projections
-//	log        Logger
+//	log        NewLogger
 //	w          Writer //todo it support old projections
 //}
 //
-//func NewHandlers(e EventStore, s *Schemas, l Logger, w Writer) *Handlers {
+//func NewHandlers(e EventStore, s *Schemas, l NewLogger, w Writer) *Handlers {
 //	return &Handlers{
 //		store:      e,
 //		schemas:    s,

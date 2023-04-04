@@ -3,6 +3,8 @@ package stream
 import (
 	"os"
 	"sync"
+
+	"github.com/sokool/log"
 )
 
 type Component interface {
@@ -12,17 +14,17 @@ type Component interface {
 type Configuration struct {
 	Name Type
 	// Logger
-	Logger func(Type) Printer
+	Logger NewLogger
 
 	// EventStore factory
-	EventStore func(Printer) EventStore // todo func not needed
+	EventStore func(Logger) EventStore // todo func not needed
 }
 
 type Engine struct {
 	name    Type
 	store   EventStore
-	logger  Logger
-	log     Printer
+	logger  NewLogger
+	log     Logger
 	writers map[Type]Writer
 	mu      sync.RWMutex
 }
@@ -31,7 +33,7 @@ func New(c *Configuration) *Engine {
 	s := Engine{
 		name:    c.Name,
 		store:   MemoryEventStore,
-		logger:  NewLogger(os.Stdout, "stream", true).WithTag,
+		logger:  newLogger,
 		writers: map[Type]Writer{},
 	}
 
@@ -42,7 +44,7 @@ func New(c *Configuration) *Engine {
 		s.store = c.EventStore(s.logger("EventStore"))
 	}
 
-	s.log = s.logger(s.name)
+	s.log = s.logger(s.name.String())
 
 	return &s
 }
@@ -78,7 +80,7 @@ func (s *Engine) Write(e Events) (n int, err error) {
 				if ok {
 					che <- err
 				} else {
-					s.log("ERR %s %s failed due `%s` error", e, t, err)
+					s.log("write:err %s %s failed due `%s` error", e, t, err)
 				}
 			}
 
@@ -105,3 +107,15 @@ func (s *Engine) register(w Writer, t Type) error {
 }
 
 func (s *Engine) Run() {}
+
+type Logger = func(string, ...any)
+
+type NewLogger func(...string) Logger
+
+func newLogger(tag ...string) Logger {
+	l := log.New(os.Stdout, log.Date|log.Time|log.Type|log.Tag|log.Colors)
+	if len(tag) != 0 {
+		l = l.Tag(tag[0])
+	}
+	return l.Printf
+}

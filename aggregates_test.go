@@ -96,7 +96,7 @@ func TestAggregates_SetGet(t *testing.T) {
 func NewEngine(t *testing.T) *stream.Engine {
 	return stream.New(&stream.Configuration{
 		Name: "MyCoolTestDomain",
-		EventStore: func(l stream.Printer) stream.EventStore {
+		EventStore: func(l stream.Logger) stream.EventStore {
 			host := os.Getenv("MYSQL_EVENT_STORE")
 			if host == "" {
 				return stream.NewMemoryEventStore()
