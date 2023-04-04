@@ -9,7 +9,7 @@ type EventsStore struct {
 	*Connection
 }
 
-func NewEventsStore(host string, l Printer) (*EventsStore, error) {
+func NewEventsStore(host string, l Logger) (*EventsStore, error) {
 	var e EventsStore
 	var err error
 

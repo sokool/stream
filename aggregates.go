@@ -47,7 +47,7 @@ type Aggregates[R Root] struct {
 	writer Writer
 
 	// Logger
-	log Printer
+	log Logger
 
 	// memory keeps created Changelog of Aggregates in order to avoid rebuilding
 	// state of each Aggregates everytime when Thread is called
@@ -63,7 +63,7 @@ func NewAggregates[R Root](rf NewRoot[R], definitions []event) *Aggregates[R] {
 		definitions:        definitions,
 		store:              MemoryEventStore,
 		memory:             NewCache[string, *Aggregate[R]](time.Minute),
-		log:                DefaultLogger(rt),
+		log:                newLogger(rt.String()),
 		loadEventsInChunks: 1024,
 	}
 
@@ -162,13 +162,13 @@ func (a *Aggregates[R]) String() string {
 
 func (a *Aggregates[R]) Compose(e *Engine) error {
 	a.
-		WithStorage(e.store).
-		WithLogger(e.logger).
-		WithWriter(e)
+		Storage(e.store).
+		Logger(e.logger).
+		Writer(e)
 	return nil
 }
 
-func (a *Aggregates[R]) WithCacheInterval(d time.Duration) *Aggregates[R] {
+func (a *Aggregates[R]) CacheInterval(d time.Duration) *Aggregates[R] {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -176,7 +176,7 @@ func (a *Aggregates[R]) WithCacheInterval(d time.Duration) *Aggregates[R] {
 	return a
 }
 
-func (a *Aggregates[R]) WithStorage(es EventStore) *Aggregates[R] {
+func (a *Aggregates[R]) Storage(es EventStore) *Aggregates[R] {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -184,7 +184,7 @@ func (a *Aggregates[R]) WithStorage(es EventStore) *Aggregates[R] {
 	return a
 }
 
-func (a *Aggregates[R]) WithWriter(w Writer) *Aggregates[R] {
+func (a *Aggregates[R]) Writer(w Writer) *Aggregates[R] {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -192,11 +192,11 @@ func (a *Aggregates[R]) WithWriter(w Writer) *Aggregates[R] {
 	return a
 }
 
-func (a *Aggregates[R]) WithLogger(l Logger) *Aggregates[R] {
+func (a *Aggregates[R]) Logger(l NewLogger) *Aggregates[R] {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	a.log = l(a.typ)
+	a.log = l(a.typ.String())
 	return a
 }
 

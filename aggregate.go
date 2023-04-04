@@ -150,6 +150,10 @@ func (a *Aggregate[R]) String() string {
 	return a.sequence.String()
 }
 
+func (a *Aggregate[R]) GoString() string {
+	return ""
+}
+
 func (a *Aggregate[R]) commit(e []Event) error {
 	if len(e) == 0 {
 		return nil

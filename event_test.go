@@ -66,8 +66,8 @@ func TestNewEvent(t *testing.T) {
 	if e.Stream() != id {
 		t.Fatal()
 	}
-	if n := e.String(); n != "5776c729:Thread[Started]" {
-		t.Fatalf("expected 5776c729:Thread[Started] got %s", n)
+	if n := e.String(); n != "5776c729.Thread[Started]" {
+		t.Fatalf("expected 5776c729.Thread[Started] got %s", n)
 	}
 
 }
@@ -88,16 +88,16 @@ func TestNewEvents(t *testing.T) {
 		t.Fatalf("expected 3 events, got %d", n)
 	}
 
-	if s := e[0].String(); s != "497b882d:Thread[Started]#1" {
-		t.Fatalf("expected 497b882d:Thread[Started]#1 got %s", s)
+	if s := e[0].String(); s != "497b882d.Thread[Started]#1" {
+		t.Fatalf("expected 497b882d.Thread[Started]#1 got %s", s)
 	}
 
-	if s := e[1].String(); s != "497b882d:Thread[Joined]#2" {
-		t.Fatalf("expected 497b882d:Thread[Started]#1 got %s", s)
+	if s := e[1].String(); s != "497b882d.Thread[Joined]#2" {
+		t.Fatalf("expected 497b882d.Thread[Started]#1 got %s", s)
 	}
 
-	if s := e[2].String(); s != "497b882d:Thread[Closed]#3" {
-		t.Fatalf("expected 497b882d:Thread[Started]#1 got %s", s)
+	if s := e[2].String(); s != "497b882d.Thread[Closed]#3" {
+		t.Fatalf("expected 497b882d.Thread[Started]#1 got %s", s)
 	}
 }
 

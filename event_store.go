@@ -16,7 +16,7 @@ type EventStore interface {
 	Reader(Query) Reader
 }
 
-type EventStoreFunc func(*schemas, Printer) EventStore
+type EventStoreFunc func(*schemas, Logger) EventStore
 
 // Query read stream events
 type Query struct {

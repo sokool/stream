@@ -14,11 +14,11 @@ import (
 
 type Connection struct {
 	db  *sqlx.DB
-	log stream.Printer
+	log stream.Logger
 	gdb *gorm.DB
 }
 
-func NewConnection(host string, l stream.Printer) (*Connection, error) {
+func NewConnection(host string, l stream.Logger) (*Connection, error) {
 	var c Connection
 	var err error
 
