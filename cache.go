@@ -33,3 +33,7 @@ func (c *Cache[K, V]) Set(key K, value V, timeout ...time.Duration) error {
 	c.engine.Set(key, value, cache.WithExpiration(timeout[0]))
 	return nil
 }
+
+func (c *Cache[K, V]) Keys() []K {
+	return c.engine.Keys()
+}
