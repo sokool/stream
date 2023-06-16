@@ -13,7 +13,7 @@ func ExampleAggregate_Run() {
 	if err != nil {
 		return
 	}
-	fmt.Println(chat, chat.ID(), chat.Version())
+	fmt.Println(chat)
 
 	if err = chat.Run(func(t *threads.Thread) error { return t.Start("elo", "dood") }); err != nil {
 		return
