@@ -10,8 +10,8 @@ type ID struct {
 	typ  Type
 }
 
-func NewID[T any](id string) (d ID, err error) {
-	if d.uuid = NewUUID(id); d.uuid.IsEmpty() {
+func NewID[T any](s string) (d ID, err error) {
+	if d.uuid = NewUUID(s); d.uuid.IsEmpty() {
 		return d, Err("id uuid is empty")
 	}
 	if d.typ, err = NewType[T](); err != nil {
@@ -32,16 +32,16 @@ func ParseID(s string) (ID, error) {
 	return id, nil
 }
 
-func (id ID) Value() string {
-	return id.uuid.String()
+func (id ID) UUID() UUID {
+	return id.uuid
 }
 
 func (id ID) Type() Type {
 	return id.typ
 }
 
-func (id ID) UUID() UUID {
-	return id.uuid
+func (id ID) Hash() UUID {
+	return NewUUID(fmt.Sprintf("%s:%s", id.uuid, id.typ))
 }
 
 func (id ID) IsEmpty() bool {
@@ -49,5 +49,9 @@ func (id ID) IsEmpty() bool {
 }
 
 func (id ID) String() string {
-	return fmt.Sprintf("%s.%s", id.uuid.Foo(), id.typ)
+	return fmt.Sprintf("%s.%s", id.uuid.Short(), id.typ)
+}
+
+func (id ID) Sequence() Sequence {
+	return Sequence{id: id}
 }

@@ -24,7 +24,8 @@ func TestNewAggregate(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			_, err := NewAggregate(fake.CharactersN(8), c.root, c.events)
+			id, _ := NewID[threads.Thread](fake.CharactersN(8))
+			_, err := NewAggregate(id, c.root, c.events)
 			if c.err && err == nil {
 				t.Fatalf("error expected")
 			}

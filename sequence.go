@@ -14,7 +14,7 @@ type Sequence struct {
 	number int64
 }
 
-func NewSequence[T Root](id string, n ...int64) (s Sequence, err error) {
+func NewSequence[T any](id string, n ...int64) (s Sequence, err error) {
 	if s.id, err = NewID[T](id); err != nil {
 		return s, Err("invalid id string %w", err)
 	}
@@ -24,7 +24,7 @@ func NewSequence[T Root](id string, n ...int64) (s Sequence, err error) {
 	return s, nil
 }
 
-func MustSequence[T Root](id string) Sequence {
+func MustSequence[T any](id string) Sequence {
 	rid, err := NewSequence[T](id)
 	if err != nil {
 		panic(err)
@@ -59,10 +59,6 @@ func (s Sequence) ID() ID {
 	return s.id
 }
 
-func (s Sequence) Type() Type {
-	return s.id.Type()
-}
-
 func (s Sequence) Number() int64 {
 	return s.number
 }
@@ -72,14 +68,15 @@ func (s Sequence) Next() Sequence {
 	return s
 }
 
-func (s Sequence) UUID() UUID {
-	return NewUUID(s.String())
+func (s Sequence) Hash() UUID {
+	return NewUUID(fmt.Sprintf("%s:%d", s.id.Hash(), s.number))
 }
 
 func (s Sequence) MarshalJSON() ([]byte, error) {
+
 	return json.Marshal(view{
-		"ID":     s.ID().Value(),
-		"Type":   s.Type(),
+		"ID":     s.id.UUID(),
+		"Type":   s.id.Type(),
 		"Number": s.Number(),
 	})
 }
@@ -113,8 +110,8 @@ func (s Sequence) String() string {
 	return fmt.Sprintf("%s#%d", s.id, s.number)
 }
 
-func (s Sequence) Is(t string) bool {
-	return s.String() == t
+func (s Sequence) Reset() {
+	s.number = 0
 }
 
 func (s Sequence) IsEmpty() bool {

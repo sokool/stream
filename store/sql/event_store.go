@@ -25,7 +25,7 @@ func (r *EventsStore) ReadWriter(s Sequence) ReadWriterAt {
 		*EventsReader
 		*EventsWriter
 	}{
-		NewEventsReader(r.Connection, Query{Stream: s.ID().UUID(), Root: s.Type()}),
+		NewEventsReader(r.Connection, Query{Stream: s.ID().UUID(), Root: s.ID().Type()}),
 		NewEventsWriter(r.Connection),
 	}
 }

@@ -13,7 +13,8 @@ func TestNewSequence(t *testing.T) {
 		id          string
 		number      int64
 
-		uuid   string
+		// expected
+		hash   string
 		string string
 		err    bool
 	}
@@ -22,14 +23,14 @@ func TestNewSequence(t *testing.T) {
 		{
 			description: "test id with no number",
 			id:          "test",
-			uuid:        "d6a351d3-b2bc-52a3-b492-2b23494e48f9",
+			hash:        "9bf8a226-2e21-5d3d-9c77-82b83c984458",
 			string:      "4be0643f.Thread",
 		},
 		{
 			description: "1hag8gh id with number 2",
 			id:          "1hag8gh",
 			number:      2,
-			uuid:        "15be7328-2770-59f5-8734-554bf64d098e",
+			hash:        "3099d54f-011e-5a6f-9a9c-d2b0f0cfbaae",
 			string:      "fcee15e0.Thread#2",
 		},
 	}
@@ -47,13 +48,13 @@ func TestNewSequence(t *testing.T) {
 			if !c.err && err != nil {
 				t.Fatalf("no error expected, got %v", err)
 			}
-			if !s.UUID().Is(c.uuid) {
-				t.Fatalf("expected %s uuid, got %s", c.uuid, s.UUID())
+			if !s.Hash().Is(c.hash) {
+				t.Fatalf("expected %s uuid, got %s", c.hash, s.Hash())
 			}
 			if s.Number() != c.number {
 				t.Fatalf("number bleh")
 			}
-			if !s.Is(c.string) {
+			if s.String() != c.string {
 				t.Fatalf("expected %s string, got %s", c.string, s)
 			}
 		})

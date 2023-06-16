@@ -67,7 +67,7 @@ func (t Type) String() string {
 	return string(t)
 }
 
-func (t Type) IsZero() bool {
+func (t Type) IsEmpty() bool {
 	return t == ""
 }
 
@@ -84,6 +84,14 @@ func (t Type) ToLower() string {
 	return strings.ToLower(string(t))
 }
 
+func (t Type) NewID(s string) (ID, error) {
+	d := ID{typ: t}
+	if d.uuid = NewUUID(s); d.uuid.IsEmpty() {
+		return d, Err("id uuid is empty")
+	}
+	return d, nil
+}
+
 func (t Type) reformat() (Type, bool) {
 	s := string(t)
 	if s = strings.ReplaceAll(s, " ", ""); len(s) == 0 {
@@ -91,10 +99,6 @@ func (t Type) reformat() (Type, bool) {
 	}
 
 	return Type(strings.Title(s)), true
-}
-
-func uid(s string) string {
-	return uuid.NewSHA1(uuid.NameSpaceDNS, []byte(s)).String()
 }
 
 type UUID struct{ id uuid.UUID }
@@ -110,7 +114,7 @@ func (u UUID) String() string {
 	return u.id.String()
 }
 
-func (u UUID) Foo() string {
+func (u UUID) Short() string {
 	return u.String()[:8]
 }
 

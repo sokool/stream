@@ -55,7 +55,7 @@ func (w *EventsWriter) WriteAt(ee Events, pos int64) (n int, err error) {
 
 		q := `INSERT INTO aggregates(id, root, event, sequence, author, created_at, body) VALUES(?, ?, ?, ?, ?, ?, ?)`
 		_, err = tx.Exec(q,
-			e.Stream().Value(),
+			e.Stream().UUID(),
 			e.Stream().Type(),
 			e.Type(),
 			e.Sequence(),

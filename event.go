@@ -30,7 +30,7 @@ func NewEvent(s Sequence, e event) (Event, error) {
 	}
 
 	return Event{
-		typ:       t.CutPrefix(s.Type()),
+		typ:       t.CutPrefix(s.ID().Type()),
 		sequence:  s,
 		body:      e,
 		meta:      Meta{},
@@ -39,7 +39,7 @@ func NewEvent(s Sequence, e event) (Event, error) {
 }
 
 func (e *Event) ID() UUID {
-	return e.sequence.UUID()
+	return e.sequence.Hash()
 }
 
 func (e *Event) Type() Type {

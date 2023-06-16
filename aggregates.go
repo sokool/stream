@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+type NewRoot[R Root] func(string) (R, error)
+
 // Aggregates is todo :)
 type Aggregates[R Root] struct {
 	typ         Type
@@ -51,7 +53,7 @@ type Aggregates[R Root] struct {
 
 	// memory keeps created Changelog of Aggregates in order to avoid rebuilding
 	// state of each Aggregates everytime when Thread is called
-	memory *Cache[string, *Aggregate[R]]
+	memory *Cache[ID, *Aggregate[R]]
 	mu     sync.Mutex
 }
 
@@ -62,7 +64,7 @@ func NewAggregates[R Root](rf NewRoot[R], definitions []event) *Aggregates[R] {
 		typ:                rt,
 		definitions:        definitions,
 		store:              MemoryEventStore,
-		memory:             NewCache[string, *Aggregate[R]](time.Minute),
+		memory:             NewCache[ID, *Aggregate[R]](time.Minute),
 		log:                newLogger(rt.String()),
 		loadEventsInChunks: 1024,
 	}
@@ -72,9 +74,13 @@ func NewAggregates[R Root](rf NewRoot[R], definitions []event) *Aggregates[R] {
 func (a *Aggregates[R]) Get(id string) (*Aggregate[R], error) {
 	var ok bool
 	var ar *Aggregate[R]
-	var err error
-	if ar, ok = a.memory.Get(id); !ok {
-		if ar, err = NewAggregate[R](id, a.onCreate, a.definitions); err != nil {
+
+	d, err := a.typ.NewID(id)
+	if err != nil {
+		return nil, err
+	}
+	if ar, ok = a.memory.Get(d); !ok {
+		if ar, err = NewAggregate[R](d, a.onCreate, a.definitions); err != nil {
 			return nil, err
 		}
 	}
@@ -89,7 +95,7 @@ func (a *Aggregates[R]) Get(id string) (*Aggregate[R], error) {
 		}
 	}
 
-	return ar, a.memory.Set(id, ar)
+	return ar, a.memory.Set(ar.sequence.id, ar)
 }
 
 func (a *Aggregates[R]) Execute(id string, c Command[R]) error {
@@ -147,8 +153,7 @@ func (a *Aggregates[R]) Set(r *Aggregate[R]) error {
 			return err
 		}
 	}
-
-	return a.memory.Set(r.ID(), r)
+	return a.memory.Set(r.sequence.id, r)
 }
 
 func (a *Aggregates[R]) String() string {
@@ -172,7 +177,7 @@ func (a *Aggregates[R]) CacheInterval(d time.Duration) *Aggregates[R] {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	a.memory = NewCache[string, *Aggregate[R]](d)
+	a.memory = NewCache[ID, *Aggregate[R]](d)
 	return a
 }
 
@@ -203,7 +208,5 @@ func (a *Aggregates[R]) Logger(l NewLogger) *Aggregates[R] {
 type Context = context.Context
 
 type Date = time.Time
-
-type NewRoot[R Root] func(string) (R, error)
 
 type expired interface{ CacheTimeout() time.Duration }

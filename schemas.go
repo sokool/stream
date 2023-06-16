@@ -75,14 +75,14 @@ func (r *schemas) merge(s Schemas, root Type) (err error) {
 			return err
 		}
 
-		if !a.Transaction.IsZero() {
+		if !a.Transaction.IsEmpty() {
 			c = Types{a.Transaction: true}
 		}
 
 		t := reflect.TypeOf(e)
 		p := t.PkgPath() + "/" + t.Name()
 		r.list = append(r.list, schema{
-			id:          uid(p),
+			id:          NewUUID(p),
 			event:       n.CutPrefix(root),
 			root:        root,
 			description: a.Description,
@@ -112,7 +112,7 @@ func (r *schemas) set(definition []event, root Type) error {
 		t := reflect.TypeOf(e)
 		p := t.PkgPath() + "/" + t.Name()
 		r.list = append(r.list, schema{
-			id:       uid(p),
+			id:       NewUUID(p),
 			event:    n.CutPrefix(root),
 			root:     root,
 			coupling: c,
@@ -174,7 +174,7 @@ func (r *schemas) isCoupled(t Type, e Events) bool {
 }
 
 type schema struct {
-	id          string
+	id          UUID
 	event       Type
 	root        Type
 	description string
@@ -191,7 +191,7 @@ func (s schema) name() string {
 }
 
 func (s schema) isZero() bool {
-	return s.root.IsZero() || s.event.IsZero()
+	return s.root.IsEmpty() || s.event.IsEmpty()
 }
 
 //	func (s Scheme) Couple(with ...Type) Scheme {

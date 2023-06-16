@@ -30,7 +30,7 @@ func NewConversation(m stream.Events) (*Conversation, error) {
 		return nil, nil
 	}
 
-	return &Conversation{Id: id.Value()}, nil
+	return &Conversation{Id: id.UUID().String()}, nil
 }
 
 func (c *Conversation) ID() string { return c.Id }

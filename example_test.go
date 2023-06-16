@@ -8,11 +8,12 @@ import (
 )
 
 func ExampleAggregate_Run() {
-	chat, err := stream.NewAggregate("k8Duq81o", threads.New, threads.Events)
+	id, _ := stream.NewID[threads.Thread]("k8Duq81o")
+	chat, err := stream.NewAggregate(id, threads.New, threads.Events)
 	if err != nil {
 		return
 	}
-	fmt.Println(chat)
+	fmt.Println(chat, chat.ID(), chat.Version())
 
 	if err = chat.Run(func(t *threads.Thread) error { return t.Start("elo", "dood") }); err != nil {
 		return
