@@ -113,7 +113,7 @@ type Logger = func(string, ...any)
 type NewLogger func(...string) Logger
 
 func newLogger(tag ...string) Logger {
-	l := log.New(os.Stdout, log.Date|log.Time|log.Type|log.Tag|log.Colors)
+	l := log.New(os.Stdout, log.All)
 	if len(tag) != 0 {
 		l = l.Tag(tag[0])
 	}

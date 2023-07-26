@@ -10,7 +10,7 @@ require (
 	github.com/icrowley/fake v0.0.0-20220625154756-3c7517006344
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/sokool/errors v1.0.0
-	github.com/sokool/log v1.0.0
+	github.com/sokool/log v1.0.8
 	github.com/teris-io/shortid v0.0.0-20220617161101-71ec9f2aa569
 	gorm.io/driver/mysql v1.3.6
 	gorm.io/gorm v1.23.9
