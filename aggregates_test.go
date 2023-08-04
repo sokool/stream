@@ -54,13 +54,14 @@ func TestAggregatesWithProjection(t *testing.T) {
 }
 
 func TestAggregates_SetGet(t *testing.T) {
+	sp := &Person{}
 	id, se := fake.CharactersN(8), NewEngine(t)
 	chats, err := chat.New(se)
-	t1, err := chats.Threads.Get(id)
+	t1, err := chats.Threads.Get(sp, id)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t2, err := chats.Threads.Get(id)
+	t2, err := chats.Threads.Get(sp, id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +84,7 @@ func TestAggregates_SetGet(t *testing.T) {
 	if t1.Events().Size() != 2 {
 		t.Fatal()
 	}
-	if err = chats.Threads.Set(t1); err != nil {
+	if err = chats.Threads.Set(sp, t1); err != nil {
 		t.Fatal(err)
 	}
 	if t1.Version() != 2 {

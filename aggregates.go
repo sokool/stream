@@ -71,13 +71,16 @@ func NewAggregates[R Root](rf NewRoot[R], definitions []event) *Aggregates[R] {
 
 }
 
-func (a *Aggregates[R]) Get(id string) (*Aggregate[R], error) {
+func (a *Aggregates[R]) Get(s Session, id string) (*Aggregate[R], error) {
 	var ok bool
 	var ar *Aggregate[R]
 
 	d, err := a.typ.NewID(id)
 	if err != nil {
 		return nil, err
+	}
+	if err := s.IsGranted(d.String()); err != nil {
+		return nil, Err("forbidden:%w", err)
 	}
 	if ar, ok = a.memory.Get(d); !ok {
 		if ar, err = NewAggregate[R](d, a.onCreate, a.definitions); err != nil {
@@ -100,20 +103,14 @@ func (a *Aggregates[R]) Get(id string) (*Aggregate[R], error) {
 
 func (a *Aggregates[R]) Execute(s Session, id string, c Command[R]) error {
 	for {
-		r, err := a.Get(id)
+		r, err := a.Get(s, id)
 		if err != nil {
 			return err
-		}
-		if err := s.IsGranted(r.String()); err != nil {
-			return Err("forbidden:%w", err)
 		}
 		if err = r.Run(c); err != nil {
 			return err
 		}
-		if err = s.IsGranted(r.Events().String()); err != nil {
-			return Err("forbidden:%w", err)
-		}
-		switch err = a.Set(r); {
+		switch err = a.Set(s, r); {
 		case err == ErrConcurrentWrite:
 			continue
 
@@ -125,7 +122,7 @@ func (a *Aggregates[R]) Execute(s Session, id string, c Command[R]) error {
 	}
 }
 
-func (a *Aggregates[R]) Set(r *Aggregate[R]) error {
+func (a *Aggregates[R]) Set(s Session, r *Aggregate[R]) error {
 	var now = time.Now()
 	var err error
 	var events Events
@@ -134,7 +131,9 @@ func (a *Aggregates[R]) Set(r *Aggregate[R]) error {
 			return err
 		}
 	}
-
+	if err = s.IsGranted(r.Events().String()); err != nil {
+		return Err("forbidden:%w", err)
+	}
 	if events, err = r.WriteTo(a.store); err != nil {
 		return err
 	}
