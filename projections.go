@@ -87,7 +87,7 @@ func (p *Projections[D]) Write(e Events) (n int, err error) {
 			p.blocked = err
 			return
 		}
-		p.log("dbg %s delivered in %s", e, time.Since(t))
+		p.log("dbg: %s delivered in %s", e, time.Since(t))
 	}(time.Now())
 
 	return n, p.write(e)

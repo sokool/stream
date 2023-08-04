@@ -73,6 +73,7 @@ func NewAggregates[R Root](rf NewRoot[R], definitions []event) *Aggregates[R] {
 
 func (a *Aggregates[R]) Name(s string) *Aggregates[R] {
 	a.typ = a.typ.Rename(s)
+	a.log = newLogger(a.typ.String())
 	return a
 }
 
@@ -137,7 +138,7 @@ func (a *Aggregates[R]) Set(r *Aggregate[R]) error {
 		return nil
 	}
 
-	a.log("dbg %s stored in %s", events, time.Since(now))
+	a.log("dbg: %s stored in %s", events, time.Since(now))
 
 	if a.onCommit != nil {
 		if err = a.onCommit(r.root, events); err != nil {
