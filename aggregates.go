@@ -71,6 +71,11 @@ func NewAggregates[R Root](rf NewRoot[R], definitions []event) *Aggregates[R] {
 
 }
 
+func (a *Aggregates[R]) Name(s string) *Aggregates[R] {
+	a.typ = a.typ.Rename(s)
+	return a
+}
+
 func (a *Aggregates[R]) Get(id string) (*Aggregate[R], error) {
 	var ok bool
 	var ar *Aggregate[R]
