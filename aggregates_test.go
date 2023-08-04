@@ -14,6 +14,7 @@ import (
 )
 
 func TestAggregatesWithProjection(t *testing.T) {
+	sp := &Person{}
 	chats, err := chat.New(NewEngine(t))
 	if err != nil {
 		t.Fatal(err)
@@ -21,31 +22,31 @@ func TestAggregatesWithProjection(t *testing.T) {
 
 	id, ch := fake.CharactersN(6), "#"+strings.ReplaceAll(strings.ToLower(fake.Street()), " ", "-")
 	type Thread = threads.Thread
-	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Start(ch, "tom@on.de") }); err != nil {
+	if err = chats.Threads.Execute(sp, id, func(t *Thread) error { return t.Start(ch, "tom@on.de") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Message("tom@on.de", "hi there") }); err != nil {
+	if err = chats.Threads.Execute(sp, id, func(t *Thread) error { return t.Message("tom@on.de", "hi there") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Join("greg@gog.pl") }); err != nil {
+	if err = chats.Threads.Execute(sp, id, func(t *Thread) error { return t.Join("greg@gog.pl") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Message("greg@gog.pl", "crusher!") }); err != nil {
+	if err = chats.Threads.Execute(sp, id, func(t *Thread) error { return t.Message("greg@gog.pl", "crusher!") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Join("mark@gog.pl") }); err != nil {
+	if err = chats.Threads.Execute(sp, id, func(t *Thread) error { return t.Join("mark@gog.pl") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Message("tom@on.de", "fine, thx!") }); err != nil {
+	if err = chats.Threads.Execute(sp, id, func(t *Thread) error { return t.Message("tom@on.de", "fine, thx!") }); err != nil {
 		t.Fatal(err)
 	}
 
-	if err = chats.Threads.Execute(id, func(t *Thread) error { return t.Leave("tom@on.de") }); err != nil {
+	if err = chats.Threads.Execute(sp, id, func(t *Thread) error { return t.Leave("tom@on.de") }); err != nil {
 		t.Fatal(err)
 	}
 
@@ -53,6 +54,7 @@ func TestAggregatesWithProjection(t *testing.T) {
 }
 
 func TestAggregates_SetGet(t *testing.T) {
+	sp := &Person{}
 	id, se := fake.CharactersN(8), NewEngine(t)
 	chats, err := chat.New(se)
 	t1, err := chats.Threads.Get(id)
@@ -73,7 +75,7 @@ func TestAggregates_SetGet(t *testing.T) {
 		t.Fatal()
 	}
 
-	if err = t1.Run(func(t *threads.Thread) error { return t.Start("#general", "tom") }); err != nil {
+	if err = t1.Run(sp, func(t *threads.Thread) error { return t.Start("#general", "tom") }); err != nil {
 		t.Fatal(err)
 	}
 	if t1.Version() != 0 {

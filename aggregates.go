@@ -98,17 +98,15 @@ func (a *Aggregates[R]) Get(id string) (*Aggregate[R], error) {
 	return ar, a.memory.Set(ar.sequence.id, ar)
 }
 
-func (a *Aggregates[R]) Execute(id string, c Command[R]) error {
+func (a *Aggregates[R]) Execute(s Session, id string, c Command[R]) error {
 	for {
 		r, err := a.Get(id)
 		if err != nil {
 			return err
 		}
-
-		if err = r.Run(c); err != nil {
+		if err = r.Run(s, c); err != nil {
 			return err
 		}
-
 		switch err = a.Set(r); {
 		case err == ErrConcurrentWrite:
 			continue
@@ -210,3 +208,7 @@ type Context = context.Context
 type Date = time.Time
 
 type expired interface{ CacheTimeout() time.Duration }
+
+type Session interface {
+	IsGranted(resource string) error
+}
