@@ -54,7 +54,6 @@ func TestAggregatesWithProjection(t *testing.T) {
 }
 
 func TestAggregates_SetGet(t *testing.T) {
-	sp := &Person{}
 	id, se := fake.CharactersN(8), NewEngine(t)
 	chats, err := chat.New(se)
 	t1, err := chats.Threads.Get(id)
@@ -75,7 +74,7 @@ func TestAggregates_SetGet(t *testing.T) {
 		t.Fatal()
 	}
 
-	if err = t1.Run(sp, func(t *threads.Thread) error { return t.Start("#general", "tom") }); err != nil {
+	if err = t1.Run(func(t *threads.Thread) error { return t.Start("#general", "tom") }); err != nil {
 		t.Fatal(err)
 	}
 	if t1.Version() != 0 {

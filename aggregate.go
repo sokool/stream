@@ -79,14 +79,11 @@ func (a *Aggregate[R]) ReadFrom(es EventStore) error {
 }
 
 // Run todo recover panic from Command
-func (a *Aggregate[R]) Run(s Session, c Command[R]) error {
+func (a *Aggregate[R]) Run(c Command[R]) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	var err error
-	if err = s.IsGranted(a.String()); err != nil {
-		return Err("forbidden:%w", err)
-	}
 	if a.uncommitted.Size() > 0 {
 		return Err("write events before another command in %s aggregate ", a.sequence)
 	}
@@ -96,9 +93,6 @@ func (a *Aggregate[R]) Run(s Session, c Command[R]) error {
 	var e Events
 	if e, err = NewEvents(a.sequence, a.root.Uncommitted(true)...); err != nil {
 		return err
-	}
-	if err = s.IsGranted(e.String()); err != nil {
-		return Err("forbidden:%w", err)
 	}
 	a.uncommitted = e
 

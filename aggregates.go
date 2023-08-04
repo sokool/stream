@@ -71,12 +71,6 @@ func NewAggregates[R Root](rf NewRoot[R], definitions []event) *Aggregates[R] {
 
 }
 
-func (a *Aggregates[R]) Name(s string) *Aggregates[R] {
-	a.typ = a.typ.Rename(s)
-	a.log = newLogger(a.typ.String())
-	return a
-}
-
 func (a *Aggregates[R]) Get(id string) (*Aggregate[R], error) {
 	var ok bool
 	var ar *Aggregate[R]
@@ -110,8 +104,14 @@ func (a *Aggregates[R]) Execute(s Session, id string, c Command[R]) error {
 		if err != nil {
 			return err
 		}
-		if err = r.Run(s, c); err != nil {
+		if err := s.IsGranted(r.String()); err != nil {
+			return Err("forbidden:%w", err)
+		}
+		if err = r.Run(c); err != nil {
 			return err
+		}
+		if err = s.IsGranted(r.Events().String()); err != nil {
+			return Err("forbidden:%w", err)
 		}
 		switch err = a.Set(r); {
 		case err == ErrConcurrentWrite:
@@ -129,6 +129,11 @@ func (a *Aggregates[R]) Set(r *Aggregate[R]) error {
 	var now = time.Now()
 	var err error
 	var events Events
+	if a.onCommit != nil {
+		if err = a.onCommit(r.root, events); err != nil {
+			return err
+		}
+	}
 
 	if events, err = r.WriteTo(a.store); err != nil {
 		return err
@@ -139,12 +144,6 @@ func (a *Aggregates[R]) Set(r *Aggregate[R]) error {
 	}
 
 	a.log("dbg: %s stored in %s", events, time.Since(now))
-
-	if a.onCommit != nil {
-		if err = a.onCommit(r.root, events); err != nil {
-			return err
-		}
-	}
 
 	if a.writer != nil {
 		if _, err = a.writer.Write(events); err != nil {
@@ -182,6 +181,23 @@ func (a *Aggregates[R]) CacheInterval(d time.Duration) *Aggregates[R] {
 	defer a.mu.Unlock()
 
 	a.memory = NewCache[ID, *Aggregate[R]](d)
+	return a
+}
+
+func (a *Aggregates[R]) Rename(s string) *Aggregates[R] {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.typ = a.typ.Rename(s)
+	a.log = newLogger(a.typ.String())
+	return a
+}
+
+func (a *Aggregates[R]) OnCommit(fn func(R, Events) error) *Aggregates[R] {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.onCommit = fn
 	return a
 }
 
