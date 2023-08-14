@@ -18,10 +18,10 @@ func (r Role) Resource(id, name, action string) Role {
 	return r
 }
 
-func (r Role) String() string {
-	s := fmt.Sprintf("role:%s:%s", r.Name, r.ID)
+func (r Role) String() (s string) {
+	x := fmt.Sprintf("%s:%s", r.Name, r.ID)
 	for i := range r.Resources {
-		s += fmt.Sprintf("\n%s", r.Resources[i])
+		s += fmt.Sprintf("%s:%s", x, r.Resources[i])
 	}
 	return s
 }
@@ -33,7 +33,7 @@ type Resource struct {
 }
 
 func (r Resource) String() string {
-	return fmt.Sprintf("resource:%s:%s:%s", r.Name, r.ID, r.Action)
+	return fmt.Sprintf("%s:%s:%s", r.Name, r.ID, r.Action)
 }
 
 func (r Resource) Role(id, name string) Role {

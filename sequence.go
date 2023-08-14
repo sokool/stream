@@ -117,3 +117,7 @@ func (s Sequence) Reset() {
 func (s Sequence) IsEmpty() bool {
 	return s.id.IsEmpty()
 }
+
+func (s Sequence) Resource() Resource {
+	return s.id.Resource()
+}

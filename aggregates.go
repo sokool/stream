@@ -27,10 +27,12 @@ type Aggregates[R Root] struct {
 	onSave Command[R]
 
 	// onCommit when new events are committed to a Root
-	onCommit func(Session, Events) error
+	onCommit OnEvent
 
 	// onRecall func(Session, R) error
 	onRecall func(R) time.Time
+
+	onGrant OnEvent
 
 	// onCacheCleanup when aggregate is removed from memory
 	onCacheCleanup Command[R]
@@ -79,9 +81,9 @@ func (a *Aggregates[R]) Get(s Session, id string) (*Aggregate[R], error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := s.IsGranted(d.Resource()); err != nil {
-		return nil, Err("forbidden:%w", err)
-	}
+	//if err := s.IsGranted(d.Resource()); err != nil {
+	//	return nil, Err("forbidden:%w", err)
+	//}
 	if ar, ok = a.memory.Get(d); !ok {
 		if ar, err = NewAggregate[R](d, a.onCreate, a.definitions); err != nil {
 			return nil, err
@@ -99,10 +101,6 @@ func (a *Aggregates[R]) Get(s Session, id string) (*Aggregate[R], error) {
 	}
 
 	return ar, a.memory.Set(ar.sequence.id, ar)
-}
-
-func (a *Aggregates[R]) Allow(id, role, roleID string) error {
-	return nil
 }
 
 func (a *Aggregates[R]) Execute(s Session, id string, c Command[R]) error {
@@ -131,9 +129,15 @@ func (a *Aggregates[R]) Set(s Session, r *Aggregate[R]) error {
 	var err error
 	var events = r.Events()
 	if a.onCommit != nil {
-		if err = a.onCommit(s, events); err != nil {
-			return err
+		for i := range events {
+			if err = a.onCommit(s, events[i]); err != nil {
+				return err
+			}
 		}
+	}
+
+	if err = a.grant(s, r); err != nil {
+		return err
 	}
 
 	if err = s.IsGranted(r.Events().Resources()...); err != nil {
@@ -197,11 +201,16 @@ func (a *Aggregates[R]) Rename(s string) *Aggregates[R] {
 	return a
 }
 
-func (a *Aggregates[R]) OnCommit(fn func(Session, Events) error) *Aggregates[R] {
+func (a *Aggregates[R]) OnCommit(fn OnEvent) *Aggregates[R] {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	a.onCommit = fn
+	return a
+}
+
+func (a *Aggregates[R]) OnFirst(gf OnEvent) *Aggregates[R] {
+	a.onGrant = gf
 	return a
 }
 
@@ -229,6 +238,18 @@ func (a *Aggregates[R]) Logger(l NewLogger) *Aggregates[R] {
 	return a
 }
 
+func (a *Aggregates[R]) grant(s Session, r *Aggregate[R]) error {
+	if a.onGrant == nil || r.Version() != 0 {
+		return nil
+	}
+	for _, e := range r.Events() {
+		if err := a.onGrant(s, e); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type Context = context.Context
 
 type Date = time.Time
@@ -243,3 +264,5 @@ type expired interface{ CacheTimeout() time.Duration }
 //	// list of session IDs that's allowed to have access to aggregate
 //	Allow []string
 //}
+
+type OnEvent func(s Session, e Event) error

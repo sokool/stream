@@ -142,6 +142,10 @@ func (a *Aggregate[R]) String() string {
 	return a.sequence.String()
 }
 
+func (a *Aggregate[R]) Resource() Resource {
+	return a.sequence.ID().Resource()
+}
+
 func (a *Aggregate[R]) GoString() string {
 	return ""
 }

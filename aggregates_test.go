@@ -16,6 +16,13 @@ import (
 func TestAggregatesWithProjection(t *testing.T) {
 	sp := &Person{}
 	chats, err := chat.New(NewEngine(t))
+	chats.Threads.OnFirst(func(s stream.Session, e stream.Event) error {
+		return s.Grant(
+			e.Role("1", "Customer"),
+			e.Role("4", "Provider"),
+			e.Role("", "Inflect"),
+		)
+	})
 	if err != nil {
 		t.Fatal(err)
 	}

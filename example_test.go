@@ -41,7 +41,9 @@ func (p *Person) ID() string {
 }
 
 func (p *Person) Grant(r ...stream.Role) error {
-	//TODO implement me
+	for i := range r {
+		fmt.Println(r[i])
+	}
 	return nil
 }
 

@@ -54,6 +54,14 @@ func (e *Event) Sequence() int64 {
 	return e.sequence.Number()
 }
 
+func (e *Event) Aggregate() Sequence {
+	return e.sequence
+}
+
+func (e *Event) Role(id, name string) Role {
+	return e.sequence.Resource().Role(id, name)
+}
+
 func (e *Event) Name() string {
 	return fmt.Sprintf("%s%s", e.Stream().Type(), e.typ)
 }
