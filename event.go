@@ -108,6 +108,10 @@ func (e *Event) Decode(b []byte) error {
 	return registry.decode(e, b)
 }
 
+func (e *Event) URN() string {
+	return fmt.Sprintf("%s:%s", e.sequence.ID().URN(), e.typ)
+}
+
 type Events []Event
 
 func NewEvents(s Sequence, events ...event) (ee Events, err error) {
@@ -203,6 +207,14 @@ func (r Events) Last() Event {
 
 	return Event{}
 
+}
+
+func (r Events) URN() []string {
+	var ss []string
+	for i := range r {
+		ss = append(ss, r[i].URN())
+	}
+	return ss
 }
 
 func (r Events) UUID() UUID {

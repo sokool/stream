@@ -79,7 +79,7 @@ func (a *Aggregates[R]) Get(s Session, id string) (*Aggregate[R], error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := s.IsGranted(d.String()); err != nil {
+	if err := s.IsGranted(d.URN()); err != nil {
 		return nil, Err("forbidden:%w", err)
 	}
 	if ar, ok = a.memory.Get(d); !ok {
@@ -99,6 +99,10 @@ func (a *Aggregates[R]) Get(s Session, id string) (*Aggregate[R], error) {
 	}
 
 	return ar, a.memory.Set(ar.sequence.id, ar)
+}
+
+func (a *Aggregates[R]) Allow(id, role, roleID string) error {
+	return nil
 }
 
 func (a *Aggregates[R]) Execute(s Session, id string, c Command[R]) error {
@@ -131,7 +135,7 @@ func (a *Aggregates[R]) Set(s Session, r *Aggregate[R]) error {
 			return err
 		}
 	}
-	if err = s.IsGranted(r.Events().String()); err != nil {
+	if err = s.IsGranted(r.Events().URN()...); err != nil {
 		return Err("forbidden:%w", err)
 	}
 	if events, err = r.WriteTo(a.store); err != nil {
@@ -231,5 +235,16 @@ type Date = time.Time
 type expired interface{ CacheTimeout() time.Duration }
 
 type Session interface {
-	IsGranted(resource string) error
+	//ID() string
+	Grant(resource ...string) error
+	IsGranted(resource ...string) error
 }
+
+//type Cmd[R Root] struct {
+//	// id of aggregate that command is
+//	ID      string
+//	Session Session
+//	Command func(R) error
+//	// list of session IDs that's allowed to have access to aggregate
+//	Allow []string
+//}

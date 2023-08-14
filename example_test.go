@@ -35,11 +35,23 @@ func ExampleAggregate_Run() {
 type Person struct {
 }
 
-func (p *Person) Context() stream.Context {
-	return context.TODO()
+func (p *Person) ID() string {
+	//TODO implement me
+	return ""
 }
 
-func (p *Person) IsGranted(resource string) error {
-	fmt.Println(resource)
+func (p *Person) Grant(resource ...string) error {
+	//TODO implement me
 	return nil
+}
+
+func (p *Person) IsGranted(resource ...string) error {
+	for i := range resource {
+		fmt.Println(resource[i])
+	}
+	return nil
+}
+
+func (p *Person) Context() stream.Context {
+	return context.TODO()
 }

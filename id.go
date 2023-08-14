@@ -52,6 +52,10 @@ func (id ID) String() string {
 	return fmt.Sprintf("%s.%s", id.uuid.Short(), id.typ)
 }
 
+func (id ID) URN() string {
+	return fmt.Sprintf("%s:%s", id.typ, id.uuid)
+}
+
 func (id ID) Sequence() Sequence {
 	return Sequence{id: id}
 }
