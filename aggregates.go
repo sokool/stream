@@ -27,7 +27,7 @@ type Aggregates[R Root] struct {
 	onSave Command[R]
 
 	// onCommit when new events are committed to a Root
-	onCommit func(R, Events) error // todo not able to deny it (error)
+	onCommit func(Session, Events) error
 
 	// onRecall func(Session, R) error
 	onRecall func(R) time.Time
@@ -131,7 +131,7 @@ func (a *Aggregates[R]) Set(s Session, r *Aggregate[R]) error {
 	var err error
 	var events Events
 	if a.onCommit != nil {
-		if err = a.onCommit(r.root, events); err != nil {
+		if err = a.onCommit(s, events); err != nil {
 			return err
 		}
 	}
@@ -196,7 +196,7 @@ func (a *Aggregates[R]) Rename(s string) *Aggregates[R] {
 	return a
 }
 
-func (a *Aggregates[R]) OnCommit(fn func(R, Events) error) *Aggregates[R] {
+func (a *Aggregates[R]) OnCommit(fn func(Session, Events) error) *Aggregates[R] {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
