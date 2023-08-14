@@ -16,7 +16,7 @@ import (
 func TestAggregatesWithProjection(t *testing.T) {
 	sp := &Person{}
 	chats, err := chat.New(NewEngine(t))
-	chats.Threads.OnFirst(func(s stream.Session, e stream.Event) error {
+	chats.Threads.OnWrite(func(s stream.Session, e stream.Event) error {
 		return s.Grant(
 			e.Role("1", "Customer"),
 			e.Role("4", "Provider"),

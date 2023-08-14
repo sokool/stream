@@ -43,11 +43,7 @@ func TestType_NewID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d, err := s.NewID("hi")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if d.String() != "297f69d4.Lol" {
+	if s.ID("hi").String() != "297f69d4.Lol" {
 		t.Fatal()
 	}
 }

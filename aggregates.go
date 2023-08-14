@@ -32,8 +32,6 @@ type Aggregates[R Root] struct {
 	// onRecall func(Session, R) error
 	onRecall func(R) time.Time
 
-	onGrant OnEvent
-
 	// onCacheCleanup when aggregate is removed from memory
 	onCacheCleanup Command[R]
 
@@ -76,30 +74,21 @@ func NewAggregates[R Root](rf NewRoot[R], definitions []event) *Aggregates[R] {
 func (a *Aggregates[R]) Get(s Session, id string) (*Aggregate[R], error) {
 	var ok bool
 	var ar *Aggregate[R]
-
-	d, err := a.typ.NewID(id)
-	if err != nil {
-		return nil, err
-	}
-	//if err := s.IsGranted(d.Resource()); err != nil {
-	//	return nil, Err("forbidden:%w", err)
-	//}
-	if ar, ok = a.memory.Get(d); !ok {
-		if ar, err = NewAggregate[R](d, a.onCreate, a.definitions); err != nil {
+	var ie = a.typ.ID(id)
+	var err error
+	if ar, ok = a.memory.Get(ie); !ok {
+		if ar, err = NewAggregate[R](ie, a.onCreate, a.definitions); err != nil {
 			return nil, err
 		}
 	}
-
 	if err = ar.ReadFrom(a.store); err != nil {
 		return nil, err
 	}
-
 	if a.onLoad != nil {
 		if err = a.onLoad(ar.root); err != nil {
 			return nil, err
 		}
 	}
-
 	return ar, a.memory.Set(ar.sequence.id, ar)
 }
 
@@ -134,10 +123,6 @@ func (a *Aggregates[R]) Set(s Session, r *Aggregate[R]) error {
 				return err
 			}
 		}
-	}
-
-	if err = a.grant(s, r); err != nil {
-		return err
 	}
 
 	if err = s.IsGranted(r.Events().Resources()...); err != nil {
@@ -201,16 +186,15 @@ func (a *Aggregates[R]) Rename(s string) *Aggregates[R] {
 	return a
 }
 
-func (a *Aggregates[R]) OnCommit(fn OnEvent) *Aggregates[R] {
+func (a *Aggregates[R]) Grant() {
+
+}
+
+func (a *Aggregates[R]) OnWrite(fn OnEvent) *Aggregates[R] {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	a.onCommit = fn
-	return a
-}
-
-func (a *Aggregates[R]) OnFirst(gf OnEvent) *Aggregates[R] {
-	a.onGrant = gf
 	return a
 }
 
@@ -236,18 +220,6 @@ func (a *Aggregates[R]) Logger(l NewLogger) *Aggregates[R] {
 
 	a.log = l(a.typ.String())
 	return a
-}
-
-func (a *Aggregates[R]) grant(s Session, r *Aggregate[R]) error {
-	if a.onGrant == nil || r.Version() != 0 {
-		return nil
-	}
-	for _, e := range r.Events() {
-		if err := a.onGrant(s, e); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 type Context = context.Context

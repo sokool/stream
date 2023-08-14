@@ -52,6 +52,13 @@ func MustType[T any](v ...T) Type {
 	return t
 }
 
+func (t Type) ID(s string) ID {
+	return ID{
+		typ:  t,
+		uuid: NewUUID(s),
+	}
+}
+
 func (t Type) Rename(s string) Type {
 	if v, ok := Type(s).reformat(); ok {
 		return v
@@ -82,14 +89,6 @@ func (t Type) CutPrefix(of Type) Type {
 
 func (t Type) ToLower() string {
 	return strings.ToLower(string(t))
-}
-
-func (t Type) NewID(s string) (ID, error) {
-	d := ID{typ: t}
-	if d.uuid = NewUUID(s); d.uuid.IsEmpty() {
-		return d, Err("id uuid is empty")
-	}
-	return d, nil
 }
 
 func (t Type) reformat() (Type, bool) {
