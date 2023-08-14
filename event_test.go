@@ -1,6 +1,7 @@
 package stream_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/sokool/stream"
@@ -69,9 +70,12 @@ func TestNewEvent(t *testing.T) {
 	if n := e.String(); n != "5776c729.Thread[Started]" {
 		t.Fatalf("expected 5776c729.Thread[Started] got %s", n)
 	}
-	if n := e.Resource().String(); n != "Thread:5776c729-9f97-54b6-96a4-1544d5a60e45:Started" {
+	if n := e.Resource().String(); n != "resource:Thread:5776c729-9f97-54b6-96a4-1544d5a60e45:Started" {
 		t.Fatalf("expected Thread:5776c729-9f97-54b6-96a4-1544d5a60e45:Started, given %s", n)
 	}
+
+	r := e.Resource().Role("7174", "provider")
+	fmt.Println(r)
 }
 
 func TestNewEvents(t *testing.T) {

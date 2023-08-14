@@ -40,7 +40,7 @@ func (p *Person) ID() string {
 	return ""
 }
 
-func (p *Person) Grant(stream.Role, ...stream.Resource) error {
+func (p *Person) Grant(r ...stream.Role) error {
 	//TODO implement me
 	return nil
 }
