@@ -108,8 +108,14 @@ func (e *Event) Decode(b []byte) error {
 	return registry.decode(e, b)
 }
 
-func (e *Event) URN() string {
-	return fmt.Sprintf("%s:%s", e.sequence.ID().URN(), e.typ)
+func (e *Event) Resource() Resource {
+	r := e.sequence.id
+	return Resource{
+		ID:     r.uuid.String(),
+		Name:   r.typ.String(),
+		Action: e.typ.String(),
+	}
+
 }
 
 type Events []Event
@@ -209,12 +215,12 @@ func (r Events) Last() Event {
 
 }
 
-func (r Events) URN() []string {
-	var ss []string
+func (r Events) Resources() []Resource {
+	var rr []Resource
 	for i := range r {
-		ss = append(ss, r[i].URN())
+		rr = append(rr, r[i].Resource())
 	}
-	return ss
+	return rr
 }
 
 func (r Events) UUID() UUID {

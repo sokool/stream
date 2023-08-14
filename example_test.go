@@ -40,12 +40,12 @@ func (p *Person) ID() string {
 	return ""
 }
 
-func (p *Person) Grant(resource ...string) error {
+func (p *Person) Grant(stream.Role, ...stream.Resource) error {
 	//TODO implement me
 	return nil
 }
 
-func (p *Person) IsGranted(resource ...string) error {
+func (p *Person) IsGranted(resource ...stream.Resource) error {
 	for i := range resource {
 		fmt.Println(resource[i])
 	}
